@@ -19,9 +19,17 @@ type EnvironmentConfig struct {
 	Tags    map[string]string
 }
 
+type DataConfig struct {
+	TableName    string
+	MeID         string
+	ZennUsername string
+	LogLevel     string
+}
+
 type AppConfig struct {
 	AppName     string
 	Environment EnvironmentConfig
+	Data        DataConfig
 }
 
 func Load(app awscdk.App) *AppConfig {
@@ -29,6 +37,10 @@ func Load(app awscdk.App) *AppConfig {
 	account := contextString(app, "account", os.Getenv("CDK_DEFAULT_ACCOUNT"))
 	region := contextString(app, "region", os.Getenv("CDK_DEFAULT_REGION"))
 	prefix := contextString(app, "prefix", fmt.Sprintf("%s-%s", AppName, envName))
+	tableName := contextString(app, "tableName", AppName)
+	meID := contextString(app, "meId", "replace-me")
+	zennUsername := contextString(app, "zennUsername", "replace-me")
+	logLevel := contextString(app, "logLevel", "info")
 
 	return &AppConfig{
 		AppName: AppName,
@@ -43,11 +55,29 @@ func Load(app awscdk.App) *AppConfig {
 				"ManagedBy":   "aws-cdk",
 			},
 		},
+		Data: DataConfig{
+			TableName:    tableName,
+			MeID:         meID,
+			ZennUsername: zennUsername,
+			LogLevel:     logLevel,
+		},
 	}
 }
 
 func (c *AppConfig) StackName(name string) string {
 	return fmt.Sprintf("%s-%s", c.Environment.Prefix, name)
+}
+
+func (c *AppConfig) SecretName(name string) string {
+	return fmt.Sprintf("%s/%s/%s", c.AppName, c.Environment.Name, name)
+}
+
+func (c *AppConfig) ParameterName(name string) string {
+	return fmt.Sprintf("/%s/%s/%s", c.AppName, c.Environment.Name, name)
+}
+
+func (c *AppConfig) ExportName(stackName, exportName string) string {
+	return fmt.Sprintf("%s:%s", c.StackName(stackName), exportName)
 }
 
 func (c *AppConfig) EnvironmentRef() *awscdk.Environment {

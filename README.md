@@ -41,8 +41,20 @@ The CDK app reads the following context keys:
 - `account`
 - `region`
 - `prefix`
+- `tableName` (default: `me`)
+- `meId` (default: `replace-me`)
+- `zennUsername` (default: `replace-me`)
+- `logLevel` (default: `info`)
 
 `account` and `region` can be passed with `-c` or inherited from `CDK_DEFAULT_ACCOUNT` and `CDK_DEFAULT_REGION`.
+
+`DataStack` creates:
+
+- DynamoDB table with `PK` / `SK`
+- GSIs `GSI1`, `GSI2`, `GSI3`, `GSI_EMAIL`
+- TTL attribute `ttl`
+- Secrets for `jwtSecret` and `qiitaToken`
+- SSM parameters for `meId`, `zennUsername`, and `logLevel`
 
 ## Commands
 
