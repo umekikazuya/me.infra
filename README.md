@@ -63,6 +63,14 @@ The CDK app reads the following context keys:
 - CloudWatch log group with retention
 - Environment wiring for `DYNAMODB_TABLE_NAME`, `JWT_SECRET`, `QIITA_TOKEN`, `ME_ID`, `ZENN_USERNAME`, `LOG_LEVEL`
 
+`WebStack` creates:
+
+- Private S3 bucket for frontend assets
+- CloudFront distribution with OAC for S3 and Lambda Function URL origins
+- `/api/*` behavior to the API Function URL
+- CloudFront Function for SPA route rewrite
+- Outputs for frontend bucket name, distribution ID, and distribution domain name
+
 ## Commands
 
 Run unit tests:
@@ -109,3 +117,8 @@ The first bootstrap PR creates placeholder `DataStack`, `ApiStack`, and `WebStac
 - The initial function code comes from `cmd/placeholder-api/`.
 - The generated placeholder zip is kept under `.artifacts/` and is not committed.
 - After the first deploy, the app repo GitHub Actions pipeline updates code with `aws lambda update-function-code`.
+
+## Frontend deployment contract
+
+- The app repo deploys `frontend/dist/` to the S3 bucket with `aws s3 sync`.
+- The infra repo provides the bucket name and CloudFront distribution ID as deployment contract values.
