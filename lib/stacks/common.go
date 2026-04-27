@@ -10,6 +10,8 @@ import (
 type StackProps struct {
 	awscdk.StackProps
 	Config *config.AppConfig
+	Data   *DataStack
+	Api    *ApiStack
 }
 
 func newStack(scope constructs.Construct, id string, props *StackProps) awscdk.Stack {

@@ -33,3 +33,6 @@ go.work.sum
 
 # CDK asset staging directory
 cdk.out
+
+# Generated placeholder Lambda artifacts
+.artifacts/

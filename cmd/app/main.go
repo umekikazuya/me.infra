@@ -13,14 +13,23 @@ func main() {
 	app := awscdk.NewApp(nil)
 	cfg := config.Load(app)
 
-	commonProps := &stacks.StackProps{
+	dataStack := stacks.NewDataStack(app, cfg.StackName("data"), &stacks.StackProps{
 		StackProps: cfg.StackProps(),
 		Config:     cfg,
-	}
+	})
 
-	stacks.NewDataStack(app, cfg.StackName("data"), commonProps)
-	stacks.NewApiStack(app, cfg.StackName("api"), commonProps)
-	stacks.NewWebStack(app, cfg.StackName("web"), commonProps)
+	apiStack := stacks.NewApiStack(app, cfg.StackName("api"), &stacks.StackProps{
+		StackProps: cfg.StackProps(),
+		Config:     cfg,
+		Data:       dataStack,
+	})
+
+	stacks.NewWebStack(app, cfg.StackName("web"), &stacks.StackProps{
+		StackProps: cfg.StackProps(),
+		Config:     cfg,
+		Api:        apiStack,
+		Data:       dataStack,
+	})
 
 	app.Synth(nil)
 }

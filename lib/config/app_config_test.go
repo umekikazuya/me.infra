@@ -25,8 +25,8 @@ func TestLoadDefaults(t *testing.T) {
 		t.Fatalf("Environment.Prefix = %q, want %q", cfg.Environment.Prefix, "me-dev")
 	}
 
-	if cfg.Data.TableName != "me" {
-		t.Fatalf("Data.TableName = %q, want %q", cfg.Data.TableName, "me")
+	if cfg.Data.TableName != "me." {
+		t.Fatalf("Data.TableName = %q, want %q", cfg.Data.TableName, "me.")
 	}
 
 	if cfg.Data.MeID != "replace-me" {
@@ -43,6 +43,14 @@ func TestLoadDefaults(t *testing.T) {
 
 	if cfg.StackName("data") != "me-dev-data" {
 		t.Fatalf("StackName(data) = %q, want %q", cfg.StackName("data"), "me-dev-data")
+	}
+
+	if cfg.APIFunctionName() != "me-dev-api" {
+		t.Fatalf("APIFunctionName() = %q, want %q", cfg.APIFunctionName(), "me-dev-api")
+	}
+
+	if cfg.APILogGroupName() != "/aws/lambda/me-dev-api" {
+		t.Fatalf("APILogGroupName() = %q, want %q", cfg.APILogGroupName(), "/aws/lambda/me-dev-api")
 	}
 
 	if cfg.SecretName("jwtSecret") != "me/dev/jwtSecret" {
@@ -109,6 +117,10 @@ func TestLoadUsesContextOverrides(t *testing.T) {
 
 	if cfg.Data.LogLevel != "debug" {
 		t.Fatalf("Data.LogLevel = %q, want %q", cfg.Data.LogLevel, "debug")
+	}
+
+	if cfg.APIFunctionName() != "me-prod-api" {
+		t.Fatalf("APIFunctionName() = %q, want %q", cfg.APIFunctionName(), "me-prod-api")
 	}
 
 	env := cfg.EnvironmentRef()

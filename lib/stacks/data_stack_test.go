@@ -20,14 +20,14 @@ func TestDataStack(t *testing.T) {
 		Config:     cfg,
 	})
 
-	template := assertions.Template_FromStack(stack, nil)
+	template := assertions.Template_FromStack(stack.Stack, nil)
 
 	template.ResourceCountIs(_jsii_.String("AWS::DynamoDB::Table"), _jsii_.Number(1))
 	template.ResourceCountIs(_jsii_.String("AWS::SecretsManager::Secret"), _jsii_.Number(2))
 	template.ResourceCountIs(_jsii_.String("AWS::SSM::Parameter"), _jsii_.Number(3))
 
 	template.HasResourceProperties(_jsii_.String("AWS::DynamoDB::Table"), map[string]interface{}{
-		"TableName":   "me",
+		"TableName":   "me.",
 		"BillingMode": "PAY_PER_REQUEST",
 		"TimeToLiveSpecification": map[string]interface{}{
 			"AttributeName": "ttl",
