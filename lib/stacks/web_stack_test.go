@@ -73,7 +73,7 @@ func TestWebStack(t *testing.T) {
 			}),
 			"CacheBehaviors": assertions.Match_ArrayWith(&[]interface{}{
 				assertions.Match_ObjectLike(&map[string]interface{}{
-					"PathPattern":           "api/*",
+					"PathPattern":           "/api/*",
 					"ViewerProtocolPolicy":  "redirect-to-https",
 					"CachePolicyId":         assertions.Match_AnyValue(),
 					"OriginRequestPolicyId": assertions.Match_AnyValue(),
