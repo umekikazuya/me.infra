@@ -49,6 +49,9 @@ func TestWebStack(t *testing.T) {
 			"IgnorePublicAcls":      true,
 			"RestrictPublicBuckets": true,
 		},
+		"VersioningConfiguration": map[string]interface{}{
+			"Status": "Enabled",
+		},
 	})
 
 	template.HasResourceProperties(_jsii_.String("AWS::CloudFront::Function"), map[string]interface{}{
@@ -73,7 +76,16 @@ func TestWebStack(t *testing.T) {
 			}),
 			"CacheBehaviors": assertions.Match_ArrayWith(&[]interface{}{
 				assertions.Match_ObjectLike(&map[string]interface{}{
-					"PathPattern":           "/api/*",
+					"PathPattern": "/api/*",
+					"AllowedMethods": assertions.Match_ArrayWith(&[]interface{}{
+						"GET",
+						"HEAD",
+						"OPTIONS",
+						"PUT",
+						"PATCH",
+						"POST",
+						"DELETE",
+					}),
 					"ViewerProtocolPolicy":  "redirect-to-https",
 					"CachePolicyId":         assertions.Match_AnyValue(),
 					"OriginRequestPolicyId": assertions.Match_AnyValue(),
@@ -91,6 +103,12 @@ func TestWebStack(t *testing.T) {
 	template.HasOutput(_jsii_.String("FrontendDistributionIdOutput"), map[string]interface{}{
 		"Export": map[string]interface{}{
 			"Name": "me-dev-web:distribution-id",
+		},
+	})
+
+	template.HasOutput(_jsii_.String("FrontendDistributionDomainNameOutput"), map[string]interface{}{
+		"Export": map[string]interface{}{
+			"Name": "me-dev-web:distribution-domain-name",
 		},
 	})
 }

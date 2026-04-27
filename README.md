@@ -121,4 +121,5 @@ The first bootstrap PR creates placeholder `DataStack`, `ApiStack`, and `WebStac
 ## Frontend deployment contract
 
 - The app repo deploys `frontend/dist/` to the S3 bucket with `aws s3 sync`.
-- The infra repo provides the bucket name and CloudFront distribution ID as deployment contract values.
+- The app repo invalidates CloudFront after deploy with `aws cloudfront create-invalidation --distribution-id <distribution-id> --paths '/*'`.
+- The infra repo provides the bucket name and CloudFront distribution ID as deployment contract values for the app repo workflow.

@@ -17,12 +17,18 @@ type WebStack struct {
 }
 
 func NewWebStack(scope constructs.Construct, id string, props *StackProps) *WebStack {
+	if props == nil {
+		panic("web stack requires stack props")
+	}
+	if props.Config == nil {
+		panic("web stack requires app config")
+	}
+	if props.Api == nil {
+		panic("web stack requires api stack")
+	}
+
 	stack := newStack(scope, id, props)
 	webStack := &WebStack{Stack: stack}
-
-	if props == nil || props.Config == nil || props.Api == nil {
-		return webStack
-	}
 
 	cfg := props.Config
 	api := props.Api
@@ -32,6 +38,7 @@ func NewWebStack(scope constructs.Construct, id string, props *StackProps) *WebS
 		EnforceSSL:        _jsii_.Bool(true),
 		ObjectOwnership:   awss3.ObjectOwnership_BUCKET_OWNER_ENFORCED,
 		RemovalPolicy:     awscdk.RemovalPolicy_RETAIN,
+		Versioned:         _jsii_.Bool(true),
 	})
 
 	rewriteFunction := awscloudfront.NewFunction(stack, _jsii_.String("SpaRewriteFunction"), &awscloudfront.FunctionProps{
@@ -49,7 +56,10 @@ func NewWebStack(scope constructs.Construct, id string, props *StackProps) *WebS
     return request;
   }
 
-  if (!uri.includes('.')) {
+  var segments = uri.split('/');
+  var basename = segments[segments.length - 1];
+
+  if (!basename.includes('.')) {
     request.uri = '/index.html';
   }
 
