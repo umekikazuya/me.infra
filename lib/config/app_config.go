@@ -37,7 +37,7 @@ func Load(app awscdk.App) *AppConfig {
 	account := contextString(app, "account", os.Getenv("CDK_DEFAULT_ACCOUNT"))
 	region := contextString(app, "region", os.Getenv("CDK_DEFAULT_REGION"))
 	prefix := contextString(app, "prefix", fmt.Sprintf("%s-%s", AppName, envName))
-	tableName := contextString(app, "tableName", AppName)
+	tableName := contextString(app, "tableName", "me.")
 	meID := contextString(app, "meId", "replace-me")
 	zennUsername := contextString(app, "zennUsername", "replace-me")
 	logLevel := contextString(app, "logLevel", "info")
@@ -66,6 +66,14 @@ func Load(app awscdk.App) *AppConfig {
 
 func (c *AppConfig) StackName(name string) string {
 	return fmt.Sprintf("%s-%s", c.Environment.Prefix, name)
+}
+
+func (c *AppConfig) APIFunctionName() string {
+	return fmt.Sprintf("%s-%s-api", c.AppName, c.Environment.Name)
+}
+
+func (c *AppConfig) APILogGroupName() string {
+	return fmt.Sprintf("/aws/lambda/%s", c.APIFunctionName())
 }
 
 func (c *AppConfig) SecretName(name string) string {

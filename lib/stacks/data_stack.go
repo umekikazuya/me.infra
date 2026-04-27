@@ -9,11 +9,22 @@ import (
 	_jsii_ "github.com/aws/jsii-runtime-go"
 )
 
-func NewDataStack(scope constructs.Construct, id string, props *StackProps) awscdk.Stack {
+type DataStack struct {
+	awscdk.Stack
+	Table                 awsdynamodb.Table
+	JwtSecret             awssecretsmanager.Secret
+	QiitaTokenSecret      awssecretsmanager.Secret
+	MeIDParameter         awsssm.StringParameter
+	ZennUsernameParameter awsssm.StringParameter
+	LogLevelParameter     awsssm.StringParameter
+}
+
+func NewDataStack(scope constructs.Construct, id string, props *StackProps) *DataStack {
 	stack := newStack(scope, id, props)
+	dataStack := &DataStack{Stack: stack}
 
 	if props == nil || props.Config == nil {
-		return stack
+		return dataStack
 	}
 
 	cfg := props.Config
@@ -159,5 +170,12 @@ func NewDataStack(scope constructs.Construct, id string, props *StackProps) awsc
 		ExportName: _jsii_.String(cfg.ExportName("data", "log-level-parameter-name")),
 	})
 
-	return stack
+	dataStack.Table = table
+	dataStack.JwtSecret = jwtSecret
+	dataStack.QiitaTokenSecret = qiitaToken
+	dataStack.MeIDParameter = meIDParameter
+	dataStack.ZennUsernameParameter = zennUsernameParameter
+	dataStack.LogLevelParameter = logLevelParameter
+
+	return dataStack
 }

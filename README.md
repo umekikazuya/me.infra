@@ -41,7 +41,7 @@ The CDK app reads the following context keys:
 - `account`
 - `region`
 - `prefix`
-- `tableName` (default: `me`)
+- `tableName` (default: `me.`)
 - `meId` (default: `replace-me`)
 - `zennUsername` (default: `replace-me`)
 - `logLevel` (default: `info`)
@@ -56,6 +56,13 @@ The CDK app reads the following context keys:
 - Secrets for `jwtSecret` and `qiitaToken`
 - SSM parameters for `meId`, `zennUsername`, and `logLevel`
 
+`ApiStack` creates:
+
+- Lambda function named `me-<env>-api`
+- Lambda Function URL
+- CloudWatch log group with retention
+- Environment wiring for `DYNAMODB_TABLE_NAME`, `JWT_SECRET`, `QIITA_TOKEN`, `ME_ID`, `ZENN_USERNAME`, `LOG_LEVEL`
+
 ## Commands
 
 Run unit tests:
@@ -69,6 +76,8 @@ Synthesize the CloudFormation templates:
 ```sh
 cdk synth -c envName=dev
 ```
+
+The CDK entrypoint packages the placeholder API automatically before synthesis.
 
 Diff against a target environment:
 
@@ -86,8 +95,17 @@ AWS_PROFILE=<profile> cdk deploy me-dev-data -c envName=dev -c account=<account-
 
 ```text
 cmd/app/         CDK application entrypoint
+cmd/placeholder-api/ initial placeholder Lambda source
 lib/config/      shared environment and naming config
 lib/stacks/      stack definitions
+scripts/         packaging and CDK entrypoint helpers
 ```
 
 The first bootstrap PR creates placeholder `DataStack`, `ApiStack`, and `WebStack` so the repository can synthesize before AWS resources are added incrementally.
+
+## API deployment contract
+
+- The infra repo creates the Lambda function and its surrounding AWS resources.
+- The initial function code comes from `cmd/placeholder-api/`.
+- The generated placeholder zip is kept under `.artifacts/` and is not committed.
+- After the first deploy, the app repo GitHub Actions pipeline updates code with `aws lambda update-function-code`.
