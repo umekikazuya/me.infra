@@ -99,6 +99,98 @@ Deploy a single stack:
 AWS_PROFILE=<profile> cdk deploy me-dev-data -c envName=dev -c account=<account-id> -c region=<region>
 ```
 
+Deploy the core stacks in order:
+
+```sh
+AWS_PROFILE=<profile> cdk deploy \
+  me-dev-data \
+  me-dev-api \
+  me-dev-web \
+  -c envName=dev \
+  -c account=<account-id> \
+  -c region=<region>
+```
+
+## Deployment flow
+
+### 1. Initial infrastructure deploy
+
+Deploy in this order:
+
+1. `me-<env>-data`
+2. `me-<env>-api`
+3. `me-<env>-web`
+
+The first `ApiStack` deploy uses the placeholder Lambda from `cmd/placeholder-api/` so the function, IAM policy, log group, and Function URL can be created before the app repo starts publishing the real backend code.
+
+Example:
+
+```sh
+AWS_PROFILE=<profile> cdk deploy \
+  me-dev-data \
+  me-dev-api \
+  me-dev-web \
+  -c envName=dev \
+  -c account=<account-id> \
+  -c region=<region>
+```
+
+### 2. Infra-only changes
+
+When only the IaC changes, use the normal CDK flow:
+
+```sh
+AWS_PROFILE=<profile> cdk diff me-dev-web -c envName=dev -c account=<account-id> -c region=<region>
+AWS_PROFILE=<profile> cdk deploy me-dev-web -c envName=dev -c account=<account-id> -c region=<region>
+```
+
+Replace `me-dev-web` with `me-dev-data` or `me-dev-api` as needed.
+
+### 3. Backend code deploy from app repo
+
+The app repo owns backend build and code rollout. After building a Lambda zip whose root contains `bootstrap`, the app repo GitHub Actions workflow updates the function code directly:
+
+```sh
+aws lambda update-function-code \
+  --function-name me-dev-api \
+  --zip-file fileb://<path-to-backend-zip> \
+  --publish
+```
+
+Deployment contract:
+
+- Function name format: `me-<env>-api`
+- Infra repo owns Lambda configuration, IAM, Function URL, logs, and environment wiring
+- App repo owns backend artifact build and `update-function-code`
+
+### 4. Frontend deploy from app repo
+
+The app repo owns frontend build and static asset sync. Deploy `frontend/dist/` to the bucket created by `WebStack`:
+
+```sh
+aws s3 sync frontend/dist/ s3://<frontend-bucket-name>/ --delete
+aws cloudfront create-invalidation --distribution-id <distribution-id> --paths '/*'
+```
+
+Deployment contract:
+
+- Artifact shape: `frontend/dist/`
+- App repo owns `aws s3 sync` and invalidation
+- Infra repo owns the S3 bucket and CloudFront distribution
+
+### 5. Contract values the app repo needs
+
+The app repo workflow needs these values per environment:
+
+| Value                               | Example                                            |
+| ----------------------------------- | -------------------------------------------------- |
+| Lambda function name                | `me-dev-api`                                       |
+| Frontend bucket name                | exported by `FrontendBucketNameOutput`             |
+| CloudFront distribution ID          | exported by `FrontendDistributionIdOutput`         |
+| CloudFront distribution domain name | exported by `FrontendDistributionDomainNameOutput` |
+
+These values are produced by the CDK stacks and should be surfaced to the app repo workflow as deployment inputs.
+
 ## Repository layout
 
 ```text
