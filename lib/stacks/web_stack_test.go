@@ -39,8 +39,8 @@ func TestWebStack(t *testing.T) {
 
 	template.ResourceCountIs(_jsii_.String("AWS::S3::Bucket"), _jsii_.Number(1))
 	template.ResourceCountIs(_jsii_.String("AWS::CloudFront::Distribution"), _jsii_.Number(1))
-	template.ResourceCountIs(_jsii_.String("AWS::CloudFront::Function"), _jsii_.Number(1))
-	template.ResourceCountIs(_jsii_.String("AWS::CloudFront::OriginAccessControl"), _jsii_.Number(2))
+	template.ResourceCountIs(_jsii_.String("AWS::CloudFront::Function"), _jsii_.Number(2))
+	template.ResourceCountIs(_jsii_.String("AWS::CloudFront::OriginAccessControl"), _jsii_.Number(1))
 
 	template.HasResourceProperties(_jsii_.String("AWS::S3::Bucket"), map[string]interface{}{
 		"PublicAccessBlockConfiguration": map[string]interface{}{
@@ -49,9 +49,11 @@ func TestWebStack(t *testing.T) {
 			"IgnorePublicAcls":      true,
 			"RestrictPublicBuckets": true,
 		},
-		"VersioningConfiguration": map[string]interface{}{
-			"Status": "Enabled",
-		},
+	})
+
+	template.HasResource(_jsii_.String("AWS::S3::Bucket"), map[string]interface{}{
+		"DeletionPolicy":      "Delete",
+		"UpdateReplacePolicy": "Delete",
 	})
 
 	template.HasResourceProperties(_jsii_.String("AWS::CloudFront::Function"), map[string]interface{}{
@@ -62,9 +64,18 @@ func TestWebStack(t *testing.T) {
 		},
 	})
 
+	template.HasResourceProperties(_jsii_.String("AWS::CloudFront::Function"), map[string]interface{}{
+		"AutoPublish": true,
+		"FunctionConfig": map[string]interface{}{
+			"Comment": "Strip the /api prefix before forwarding requests to the API origin.",
+			"Runtime": "cloudfront-js-2.0",
+		},
+	})
+
 	template.HasResourceProperties(_jsii_.String("AWS::CloudFront::Distribution"), map[string]interface{}{
 		"DistributionConfig": assertions.Match_ObjectLike(&map[string]interface{}{
 			"DefaultRootObject": "index.html",
+			"PriceClass":        "PriceClass_200",
 			"DefaultCacheBehavior": assertions.Match_ObjectLike(&map[string]interface{}{
 				"ViewerProtocolPolicy": "redirect-to-https",
 				"FunctionAssociations": assertions.Match_ArrayWith(&[]interface{}{
@@ -85,6 +96,12 @@ func TestWebStack(t *testing.T) {
 						"PATCH",
 						"POST",
 						"DELETE",
+					}),
+					"FunctionAssociations": assertions.Match_ArrayWith(&[]interface{}{
+						assertions.Match_ObjectLike(&map[string]interface{}{
+							"EventType":   "viewer-request",
+							"FunctionARN": assertions.Match_AnyValue(),
+						}),
 					}),
 					"ViewerProtocolPolicy":  "redirect-to-https",
 					"CachePolicyId":         assertions.Match_AnyValue(),

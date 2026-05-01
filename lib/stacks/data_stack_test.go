@@ -23,11 +23,9 @@ func TestDataStack(t *testing.T) {
 	template := assertions.Template_FromStack(stack.Stack, nil)
 
 	template.ResourceCountIs(_jsii_.String("AWS::DynamoDB::Table"), _jsii_.Number(1))
-	template.ResourceCountIs(_jsii_.String("AWS::SecretsManager::Secret"), _jsii_.Number(2))
-	template.ResourceCountIs(_jsii_.String("AWS::SSM::Parameter"), _jsii_.Number(3))
+	template.ResourceCountIs(_jsii_.String("AWS::SSM::Parameter"), _jsii_.Number(0))
 
 	template.HasResourceProperties(_jsii_.String("AWS::DynamoDB::Table"), map[string]interface{}{
-		"TableName":   "me.",
 		"BillingMode": "PAY_PER_REQUEST",
 		"TimeToLiveSpecification": map[string]interface{}{
 			"AttributeName": "ttl",
@@ -69,38 +67,18 @@ func TestDataStack(t *testing.T) {
 		}),
 	})
 
-	template.HasResourceProperties(_jsii_.String("AWS::SecretsManager::Secret"), map[string]interface{}{
-		"Name": "me/dev/jwtSecret",
-	})
+	template.ResourcePropertiesCountIs(_jsii_.String("AWS::DynamoDB::Table"), map[string]interface{}{
+		"TableName": assertions.Match_AnyValue(),
+	}, _jsii_.Number(0))
 
-	template.HasResourceProperties(_jsii_.String("AWS::SecretsManager::Secret"), map[string]interface{}{
-		"Name": "me/dev/qiitaToken",
-	})
-
-	template.HasResourceProperties(_jsii_.String("AWS::SSM::Parameter"), map[string]interface{}{
-		"Name":  "/me/dev/meId",
-		"Value": "replace-me",
-	})
-
-	template.HasResourceProperties(_jsii_.String("AWS::SSM::Parameter"), map[string]interface{}{
-		"Name":  "/me/dev/zennUsername",
-		"Value": "replace-me",
-	})
-
-	template.HasResourceProperties(_jsii_.String("AWS::SSM::Parameter"), map[string]interface{}{
-		"Name":  "/me/dev/logLevel",
-		"Value": "info",
+	template.HasResource(_jsii_.String("AWS::DynamoDB::Table"), map[string]interface{}{
+		"DeletionPolicy":      "Delete",
+		"UpdateReplacePolicy": "Delete",
 	})
 
 	template.HasOutput(_jsii_.String("TableNameOutput"), map[string]interface{}{
 		"Export": map[string]interface{}{
 			"Name": "me-dev-data:table-name",
-		},
-	})
-
-	template.HasOutput(_jsii_.String("JwtSecretArnOutput"), map[string]interface{}{
-		"Export": map[string]interface{}{
-			"Name": "me-dev-data:jwt-secret-arn",
 		},
 	})
 }

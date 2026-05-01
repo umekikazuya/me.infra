@@ -25,10 +25,6 @@ func TestLoadDefaults(t *testing.T) {
 		t.Fatalf("Environment.Prefix = %q, want %q", cfg.Environment.Prefix, "me-dev")
 	}
 
-	if cfg.Data.TableName != "me." {
-		t.Fatalf("Data.TableName = %q, want %q", cfg.Data.TableName, "me.")
-	}
-
 	if cfg.Data.MeID != "replace-me" {
 		t.Fatalf("Data.MeID = %q, want %q", cfg.Data.MeID, "replace-me")
 	}
@@ -41,6 +37,14 @@ func TestLoadDefaults(t *testing.T) {
 		t.Fatalf("Data.LogLevel = %q, want %q", cfg.Data.LogLevel, "info")
 	}
 
+	if cfg.Data.JWTSecret == "" {
+		t.Fatal("Data.JWTSecret should be auto-generated when unset")
+	}
+
+	if cfg.Data.QiitaToken != "replace-me" {
+		t.Fatalf("Data.QiitaToken = %q, want %q", cfg.Data.QiitaToken, "replace-me")
+	}
+
 	if cfg.StackName("data") != "me-dev-data" {
 		t.Fatalf("StackName(data) = %q, want %q", cfg.StackName("data"), "me-dev-data")
 	}
@@ -51,14 +55,6 @@ func TestLoadDefaults(t *testing.T) {
 
 	if cfg.APILogGroupName() != "/aws/lambda/me-dev-api" {
 		t.Fatalf("APILogGroupName() = %q, want %q", cfg.APILogGroupName(), "/aws/lambda/me-dev-api")
-	}
-
-	if cfg.SecretName("jwtSecret") != "me/dev/jwtSecret" {
-		t.Fatalf("SecretName(jwtSecret) = %q, want %q", cfg.SecretName("jwtSecret"), "me/dev/jwtSecret")
-	}
-
-	if cfg.ParameterName("meId") != "/me/dev/meId" {
-		t.Fatalf("ParameterName(meId) = %q, want %q", cfg.ParameterName("meId"), "/me/dev/meId")
 	}
 
 	if cfg.ExportName("data", "table-name") != "me-dev-data:table-name" {
@@ -78,10 +74,11 @@ func TestLoadUsesContextOverrides(t *testing.T) {
 		"account":      "123456789012",
 		"region":       "ap-northeast-1",
 		"prefix":       "me-prod",
-		"tableName":    "me.",
 		"meId":         "umeki",
 		"zennUsername": "umekikazuya",
 		"logLevel":     "debug",
+		"jwtSecret":    "test-jwt-secret",
+		"qiitaToken":   "test-qiita-token",
 	}
 
 	app := awscdk.NewApp(&awscdk.AppProps{Context: &context})
@@ -103,10 +100,6 @@ func TestLoadUsesContextOverrides(t *testing.T) {
 		t.Fatalf("Environment.Prefix = %q, want %q", cfg.Environment.Prefix, "me-prod")
 	}
 
-	if cfg.Data.TableName != "me." {
-		t.Fatalf("Data.TableName = %q, want %q", cfg.Data.TableName, "me.")
-	}
-
 	if cfg.Data.MeID != "umeki" {
 		t.Fatalf("Data.MeID = %q, want %q", cfg.Data.MeID, "umeki")
 	}
@@ -117,6 +110,14 @@ func TestLoadUsesContextOverrides(t *testing.T) {
 
 	if cfg.Data.LogLevel != "debug" {
 		t.Fatalf("Data.LogLevel = %q, want %q", cfg.Data.LogLevel, "debug")
+	}
+
+	if cfg.Data.JWTSecret != "test-jwt-secret" {
+		t.Fatalf("Data.JWTSecret = %q, want %q", cfg.Data.JWTSecret, "test-jwt-secret")
+	}
+
+	if cfg.Data.QiitaToken != "test-qiita-token" {
+		t.Fatalf("Data.QiitaToken = %q, want %q", cfg.Data.QiitaToken, "test-qiita-token")
 	}
 
 	if cfg.APIFunctionName() != "me-prod-api" {
