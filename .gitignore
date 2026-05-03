@@ -36,3 +36,6 @@ cdk.out
 
 # Generated placeholder Lambda artifacts
 .artifacts/
+
+# Mise
+mise.local.toml
