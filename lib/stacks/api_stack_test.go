@@ -32,7 +32,11 @@ func TestApiStack(t *testing.T) {
 	template := assertions.Template_FromStack(stack.Stack, nil)
 
 	template.ResourceCountIs(_jsii_.String("AWS::Lambda::Function"), _jsii_.Number(1))
-	template.ResourceCountIs(_jsii_.String("AWS::Lambda::Url"), _jsii_.Number(1))
+	template.ResourceCountIs(_jsii_.String("AWS::ApiGatewayV2::Api"), _jsii_.Number(1))
+	template.ResourceCountIs(_jsii_.String("AWS::ApiGatewayV2::Stage"), _jsii_.Number(1))
+	template.ResourceCountIs(_jsii_.String("AWS::ApiGatewayV2::Integration"), _jsii_.Number(1))
+	template.ResourceCountIs(_jsii_.String("AWS::ApiGatewayV2::Route"), _jsii_.Number(1))
+	template.ResourceCountIs(_jsii_.String("AWS::Lambda::Permission"), _jsii_.Number(1))
 	template.ResourceCountIs(_jsii_.String("AWS::Logs::LogGroup"), _jsii_.Number(1))
 
 	template.HasResourceProperties(_jsii_.String("AWS::Lambda::Function"), map[string]interface{}{
@@ -46,21 +50,27 @@ func TestApiStack(t *testing.T) {
 			"Variables": assertions.Match_ObjectLike(&map[string]interface{}{
 				"DYNAMODB_TABLE_NAME": assertions.Match_AnyValue(),
 				"JWT_SECRET":          assertions.Match_AnyValue(),
-				"QIITA_TOKEN":         assertions.Match_AnyValue(),
-				"ME_ID":               assertions.Match_AnyValue(),
-				"ZENN_USERNAME":       assertions.Match_AnyValue(),
-				"LOG_LEVEL":           assertions.Match_AnyValue(),
+				"QIITA_TOKEN":         "replace-me",
+				"ME_ID":               "replace-me",
+				"ZENN_USERNAME":       "replace-me",
+				"LOG_LEVEL":           "info",
 			}),
 		},
 	})
 
-	template.HasResourceProperties(_jsii_.String("AWS::Lambda::Url"), map[string]interface{}{
-		"AuthType": "AWS_IAM",
+	template.HasResourceProperties(_jsii_.String("AWS::ApiGatewayV2::Api"), map[string]interface{}{
+		"Name":         "me-dev-http-api",
+		"ProtocolType": "HTTP",
 	})
 
 	template.HasResourceProperties(_jsii_.String("AWS::Logs::LogGroup"), map[string]interface{}{
 		"LogGroupName":    "/aws/lambda/me-dev-api",
 		"RetentionInDays": 30,
+	})
+
+	template.HasResource(_jsii_.String("AWS::Logs::LogGroup"), map[string]interface{}{
+		"DeletionPolicy":      "Delete",
+		"UpdateReplacePolicy": "Delete",
 	})
 
 	template.HasOutput(_jsii_.String("ApiFunctionNameOutput"), map[string]interface{}{
@@ -69,9 +79,9 @@ func TestApiStack(t *testing.T) {
 		},
 	})
 
-	template.HasOutput(_jsii_.String("ApiFunctionUrlOutput"), map[string]interface{}{
+	template.HasOutput(_jsii_.String("ApiEndpointOutput"), map[string]interface{}{
 		"Export": map[string]interface{}{
-			"Name": "me-dev-api:function-url",
+			"Name": "me-dev-api:endpoint",
 		},
 	})
 }

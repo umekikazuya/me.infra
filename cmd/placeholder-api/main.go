@@ -15,7 +15,7 @@ type responseBody struct {
 	Status  string `json:"status"`
 }
 
-func handler(_ context.Context, request events.LambdaFunctionURLRequest) (events.LambdaFunctionURLResponse, error) {
+func handler(_ context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 	body := responseBody{
 		Message: "placeholder api deployed; app repo pipeline should replace this code",
 		Status:  "placeholder",
@@ -29,10 +29,10 @@ func handler(_ context.Context, request events.LambdaFunctionURLRequest) (events
 
 	response, err := json.Marshal(body)
 	if err != nil {
-		return events.LambdaFunctionURLResponse{}, err
+		return events.APIGatewayV2HTTPResponse{}, err
 	}
 
-	return events.LambdaFunctionURLResponse{
+	return events.APIGatewayV2HTTPResponse{
 		StatusCode: statusCode,
 		Headers: map[string]string{
 			"content-type":  "application/json",

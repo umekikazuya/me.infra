@@ -5,6 +5,8 @@ import (
 	"runtime"
 
 	"github.com/aws/aws-cdk-go/awscdk/v2"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awsapigatewayv2"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awsapigatewayv2integrations"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslambda"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslogs"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awss3assets"
@@ -14,9 +16,9 @@ import (
 
 type ApiStack struct {
 	awscdk.Stack
-	Function    awslambda.Function
-	FunctionURL awslambda.FunctionUrl
-	LogGroup    awslogs.LogGroup
+	Function awslambda.Function
+	HTTPAPI  awsapigatewayv2.HttpApi
+	LogGroup awslogs.LogGroup
 }
 
 func NewApiStack(scope constructs.Construct, id string, props *StackProps) *ApiStack {
@@ -32,43 +34,48 @@ func NewApiStack(scope constructs.Construct, id string, props *StackProps) *ApiS
 
 	environment := map[string]*string{
 		"DYNAMODB_TABLE_NAME": data.Table.TableName(),
-		"JWT_SECRET":          data.JwtSecret.SecretValue().UnsafeUnwrap(),
-		"QIITA_TOKEN":         data.QiitaTokenSecret.SecretValue().UnsafeUnwrap(),
-		"ME_ID":               data.MeIDParameter.StringValue(),
-		"ZENN_USERNAME":       data.ZennUsernameParameter.StringValue(),
-		"LOG_LEVEL":           data.LogLevelParameter.StringValue(),
+		"JWT_SECRET":          _jsii_.String(cfg.Data.JWTSecret),
+		"QIITA_TOKEN":         _jsii_.String(cfg.Data.QiitaToken),
+		"ME_ID":               _jsii_.String(cfg.Data.MeID),
+		"ZENN_USERNAME":       _jsii_.String(cfg.Data.ZennUsername),
+		"LOG_LEVEL":           _jsii_.String(cfg.Data.LogLevel),
 	}
 
 	logGroup := awslogs.NewLogGroup(stack, _jsii_.String("ApiLogGroup"), &awslogs.LogGroupProps{
 		LogGroupName:  _jsii_.String(cfg.APILogGroupName()),
 		Retention:     awslogs.RetentionDays_ONE_MONTH,
-		RemovalPolicy: awscdk.RemovalPolicy_RETAIN,
+		RemovalPolicy: awscdk.RemovalPolicy_DESTROY,
 	})
 
-	function := awslambda.NewFunction(stack, _jsii_.String("ApiFunction"), &awslambda.FunctionProps{
-		FunctionName: _jsii_.String(cfg.APIFunctionName()),
-		Description:  _jsii_.String("Placeholder me API Lambda. The app repository replaces the code with update-function-code after initial deployment."),
-		Runtime:      awslambda.Runtime_PROVIDED_AL2023(),
-		Architecture: awslambda.Architecture_ARM_64(),
-		Handler:      _jsii_.String("bootstrap"),
-		Code: awslambda.Code_FromAsset(_jsii_.String(placeholderAPIAssetPath()), &awss3assets.AssetOptions{
-			DeployTime: _jsii_.Bool(true),
-		}),
-		Environment: &environment,
-		MemorySize:  _jsii_.Number(512),
-		Timeout:     awscdk.Duration_Seconds(_jsii_.Number(30)),
-		LogGroup:    logGroup,
-	})
+	function := awslambda.NewFunction(
+		stack,
+		_jsii_.String("ApiFunction"),
+		&awslambda.FunctionProps{
+			FunctionName: _jsii_.String(cfg.APIFunctionName()),
+			Description:  _jsii_.String("Placeholder me API Lambda. The app repository replaces the code with update-function-code after initial deployment."),
+			Runtime:      awslambda.Runtime_PROVIDED_AL2023(),
+			Architecture: awslambda.Architecture_ARM_64(),
+			Handler:      _jsii_.String("bootstrap"),
+			Code:         awslambda.Code_FromAsset(_jsii_.String(placeholderAPIAssetPath()), &awss3assets.AssetOptions{DeployTime: _jsii_.Bool(true)}),
+			Environment:  &environment,
+			MemorySize:   _jsii_.Number(512),
+			Timeout:      awscdk.Duration_Seconds(_jsii_.Number(30)),
+			LogGroup:     logGroup,
+		},
+	)
 
 	data.Table.GrantReadWriteData(function)
-	data.JwtSecret.GrantRead(function, nil)
-	data.QiitaTokenSecret.GrantRead(function, nil)
-	data.MeIDParameter.GrantRead(function)
-	data.ZennUsernameParameter.GrantRead(function)
-	data.LogLevelParameter.GrantRead(function)
 
-	functionURL := function.AddFunctionUrl(&awslambda.FunctionUrlOptions{
-		AuthType: awslambda.FunctionUrlAuthType_AWS_IAM,
+	httpAPI := awsapigatewayv2.NewHttpApi(stack, _jsii_.String("HttpApi"), &awsapigatewayv2.HttpApiProps{
+		ApiName:     _jsii_.String(cfg.StackName("http-api")),
+		Description: _jsii_.String("me API Gateway HTTP API"),
+		DefaultIntegration: awsapigatewayv2integrations.NewHttpLambdaIntegration(
+			_jsii_.String("DefaultIntegration"),
+			function,
+			&awsapigatewayv2integrations.HttpLambdaIntegrationProps{
+				PayloadFormatVersion: awsapigatewayv2.PayloadFormatVersion_VERSION_2_0(),
+			},
+		),
 	})
 
 	awscdk.NewCfnOutput(stack, _jsii_.String("ApiFunctionNameOutput"), &awscdk.CfnOutputProps{
@@ -81,9 +88,9 @@ func NewApiStack(scope constructs.Construct, id string, props *StackProps) *ApiS
 		ExportName: _jsii_.String(cfg.ExportName("api", "function-arn")),
 	})
 
-	awscdk.NewCfnOutput(stack, _jsii_.String("ApiFunctionUrlOutput"), &awscdk.CfnOutputProps{
-		Value:      functionURL.Url(),
-		ExportName: _jsii_.String(cfg.ExportName("api", "function-url")),
+	awscdk.NewCfnOutput(stack, _jsii_.String("ApiEndpointOutput"), &awscdk.CfnOutputProps{
+		Value:      httpAPI.ApiEndpoint(),
+		ExportName: _jsii_.String(cfg.ExportName("api", "endpoint")),
 	})
 
 	awscdk.NewCfnOutput(stack, _jsii_.String("ApiLogGroupNameOutput"), &awscdk.CfnOutputProps{
@@ -92,7 +99,7 @@ func NewApiStack(scope constructs.Construct, id string, props *StackProps) *ApiS
 	})
 
 	apiStack.Function = function
-	apiStack.FunctionURL = functionURL
+	apiStack.HTTPAPI = httpAPI
 	apiStack.LogGroup = logGroup
 
 	return apiStack

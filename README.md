@@ -41,10 +41,11 @@ CDK アプリは以下の context key を読みます。
 - `account`
 - `region`
 - `prefix`
-- `tableName`（default: `me.`）
 - `meId`（default: `replace-me`）
 - `zennUsername`（default: `replace-me`）
 - `logLevel`（default: `info`）
+- `jwtSecret`（optional: 未指定なら synth / deploy ごとに自動生成）
+- `qiitaToken`（default: `replace-me`）
 
 `account` と `region` は `-c` で渡すか、`CDK_DEFAULT_ACCOUNT` / `CDK_DEFAULT_REGION` から読みます。
 
@@ -53,23 +54,29 @@ CDK アプリは以下の context key を読みます。
 - DynamoDB table (`PK` / `SK`)
 - GSI (`GSI1`, `GSI2`, `GSI3`, `GSI_EMAIL`)
 - TTL attribute (`ttl`)
-- Secrets Manager (`jwtSecret`, `qiitaToken`)
-- SSM Parameter Store (`meId`, `zennUsername`, `logLevel`)
+
+DynamoDB table 名は code/context で固定せず、CloudFormation の自動命名に任せます。実名は `TableNameOutput` から参照します。
+
+`jwtSecret` と `qiitaToken` は CDK context から直接 Lambda 環境変数へ渡します。Secrets Manager は使いません。`jwtSecret` を省略すると synth / deploy のたびに新しい値が生成され、既存 JWT は無効になります。
+`meId`、`zennUsername`、`logLevel` も deploy 入力から Lambda 環境変数へ直接渡します。
 
 `ApiStack` で作るもの:
 
 - `me-<env>-api` という名前の Lambda
-- Lambda Function URL
+- API Gateway HTTP API
 - CloudWatch Logs の log group
 - `DYNAMODB_TABLE_NAME`, `JWT_SECRET`, `QIITA_TOKEN`, `ME_ID`, `ZENN_USERNAME`, `LOG_LEVEL` の env 配線
 
 `WebStack` で作るもの:
 
 - frontend 配信用の private S3 bucket
-- S3 / Lambda Function URL 向け OAC を含む CloudFront distribution
-- `/api/*` を API Function URL へ向ける behavior
+- S3 向け OAC を含む CloudFront distribution
+- CloudFront は `PriceClass 200` に固定
+- `/api/*` を API Gateway へ向ける behavior（origin へ渡す前に `/api` prefix を削除）
 - SPA rewrite 用の CloudFront Function
 - frontend bucket 名、distribution ID、distribution domain name の outputs
+
+このリポジトリの v1 default は検証環境の後片付けコストを下げるため destroy 寄りです。stack を削除すると DynamoDB、CloudWatch Logs、frontend bucket 内の object も保持せず削除されます。
 
 ## 基本コマンド
 
@@ -107,6 +114,9 @@ AWS_PROFILE=<profile> cdk deploy \
   me-dev-api \
   me-dev-web \
   -c envName=dev \
+  -c meId=<me-id> \
+  -c zennUsername=<zenn-username> \
+  -c qiitaToken=<qiita-token> \
   -c account=<account-id> \
   -c region=<region>
 ```
@@ -121,7 +131,7 @@ AWS_PROFILE=<profile> cdk deploy \
 2. `me-<env>-api`
 3. `me-<env>-web`
 
-初回の `ApiStack` では `cmd/placeholder-api/` の placeholder Lambda を使います。これにより、app repo 側が本物の backend code を publish する前に、Lambda・IAM・Function URL・log group を先に作れます。
+初回の `ApiStack` では `cmd/placeholder-api/` の placeholder Lambda を使います。これにより、app repo 側が本物の backend code を publish する前に、Lambda・IAM・API Gateway・log group を先に作れます。
 
 例:
 
@@ -131,6 +141,9 @@ AWS_PROFILE=<profile> cdk deploy \
   me-dev-api \
   me-dev-web \
   -c envName=dev \
+  -c meId=<me-id> \
+  -c zennUsername=<zenn-username> \
+  -c qiitaToken=<qiita-token> \
   -c account=<account-id> \
   -c region=<region>
 ```
@@ -160,7 +173,7 @@ aws lambda update-function-code \
 契約:
 
 - function name 形式は `me-<env>-api`
-- infra repo は Lambda の設定、IAM、Function URL、logs、env wiring を持つ
+- infra repo は Lambda の設定、IAM、API Gateway、logs、env wiring を持つ
 - app repo は backend artifact の build と `update-function-code` を持つ
 
 ### 4. app repo から frontend を deploy する

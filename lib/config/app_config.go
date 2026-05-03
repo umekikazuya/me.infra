@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"os"
 
@@ -20,10 +22,11 @@ type EnvironmentConfig struct {
 }
 
 type DataConfig struct {
-	TableName    string
 	MeID         string
 	ZennUsername string
 	LogLevel     string
+	JWTSecret    string
+	QiitaToken   string
 }
 
 type AppConfig struct {
@@ -37,10 +40,11 @@ func Load(app awscdk.App) *AppConfig {
 	account := contextString(app, "account", os.Getenv("CDK_DEFAULT_ACCOUNT"))
 	region := contextString(app, "region", os.Getenv("CDK_DEFAULT_REGION"))
 	prefix := contextString(app, "prefix", fmt.Sprintf("%s-%s", AppName, envName))
-	tableName := contextString(app, "tableName", "me.")
 	meID := contextString(app, "meId", "replace-me")
 	zennUsername := contextString(app, "zennUsername", "replace-me")
 	logLevel := contextString(app, "logLevel", "info")
+	jwtSecret := contextString(app, "jwtSecret", generateJWTSecret())
+	qiitaToken := contextString(app, "qiitaToken", "replace-me")
 
 	return &AppConfig{
 		AppName: AppName,
@@ -56,10 +60,11 @@ func Load(app awscdk.App) *AppConfig {
 			},
 		},
 		Data: DataConfig{
-			TableName:    tableName,
 			MeID:         meID,
 			ZennUsername: zennUsername,
 			LogLevel:     logLevel,
+			JWTSecret:    jwtSecret,
+			QiitaToken:   qiitaToken,
 		},
 	}
 }
@@ -74,14 +79,6 @@ func (c *AppConfig) APIFunctionName() string {
 
 func (c *AppConfig) APILogGroupName() string {
 	return fmt.Sprintf("/aws/lambda/%s", c.APIFunctionName())
-}
-
-func (c *AppConfig) SecretName(name string) string {
-	return fmt.Sprintf("%s/%s/%s", c.AppName, c.Environment.Name, name)
-}
-
-func (c *AppConfig) ParameterName(name string) string {
-	return fmt.Sprintf("/%s/%s/%s", c.AppName, c.Environment.Name, name)
 }
 
 func (c *AppConfig) ExportName(stackName, exportName string) string {
@@ -121,4 +118,13 @@ func contextString(app awscdk.App, key, defaultValue string) string {
 	}
 
 	return defaultValue
+}
+
+func generateJWTSecret() string {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		panic(fmt.Sprintf("generate jwt secret: %v", err))
+	}
+
+	return base64.RawURLEncoding.EncodeToString(buf)
 }
