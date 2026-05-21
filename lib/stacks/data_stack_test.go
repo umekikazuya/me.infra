@@ -25,59 +25,59 @@ func TestDataStack(t *testing.T) {
 	template.ResourceCountIs(_jsii_.String("AWS::DynamoDB::Table"), _jsii_.Number(1))
 	template.ResourceCountIs(_jsii_.String("AWS::SSM::Parameter"), _jsii_.Number(0))
 
-	template.HasResourceProperties(_jsii_.String("AWS::DynamoDB::Table"), map[string]interface{}{
+	template.HasResourceProperties(_jsii_.String("AWS::DynamoDB::Table"), map[string]any{
 		"BillingMode": "PAY_PER_REQUEST",
-		"TimeToLiveSpecification": map[string]interface{}{
+		"TimeToLiveSpecification": map[string]any{
 			"AttributeName": "ttl",
 			"Enabled":       true,
 		},
-		"GlobalSecondaryIndexes": assertions.Match_ArrayWith(&[]interface{}{
-			map[string]interface{}{
+		"GlobalSecondaryIndexes": assertions.Match_ArrayWith(&[]any{
+			map[string]any{
 				"IndexName": "GSI1",
-				"KeySchema": assertions.Match_ArrayWith(&[]interface{}{
-					map[string]interface{}{"AttributeName": "GSI1PK", "KeyType": "HASH"},
-					map[string]interface{}{"AttributeName": "GSI1SK", "KeyType": "RANGE"},
+				"KeySchema": assertions.Match_ArrayWith(&[]any{
+					map[string]any{"AttributeName": "GSI1PK", "KeyType": "HASH"},
+					map[string]any{"AttributeName": "GSI1SK", "KeyType": "RANGE"},
 				}),
-				"Projection": map[string]interface{}{"ProjectionType": "ALL"},
+				"Projection": map[string]any{"ProjectionType": "ALL"},
 			},
-			map[string]interface{}{
+			map[string]any{
 				"IndexName": "GSI2",
-				"KeySchema": assertions.Match_ArrayWith(&[]interface{}{
-					map[string]interface{}{"AttributeName": "GSI2PK", "KeyType": "HASH"},
-					map[string]interface{}{"AttributeName": "GSI2SK", "KeyType": "RANGE"},
+				"KeySchema": assertions.Match_ArrayWith(&[]any{
+					map[string]any{"AttributeName": "GSI2PK", "KeyType": "HASH"},
+					map[string]any{"AttributeName": "GSI2SK", "KeyType": "RANGE"},
 				}),
-				"Projection": map[string]interface{}{"ProjectionType": "ALL"},
+				"Projection": map[string]any{"ProjectionType": "ALL"},
 			},
-			map[string]interface{}{
+			map[string]any{
 				"IndexName": "GSI3",
-				"KeySchema": assertions.Match_ArrayWith(&[]interface{}{
-					map[string]interface{}{"AttributeName": "GSI3PK", "KeyType": "HASH"},
-					map[string]interface{}{"AttributeName": "GSI3SK", "KeyType": "RANGE"},
+				"KeySchema": assertions.Match_ArrayWith(&[]any{
+					map[string]any{"AttributeName": "GSI3PK", "KeyType": "HASH"},
+					map[string]any{"AttributeName": "GSI3SK", "KeyType": "RANGE"},
 				}),
-				"Projection": map[string]interface{}{"ProjectionType": "ALL"},
+				"Projection": map[string]any{"ProjectionType": "ALL"},
 			},
-			map[string]interface{}{
+			map[string]any{
 				"IndexName": "GSI_EMAIL",
-				"KeySchema": assertions.Match_ArrayWith(&[]interface{}{
-					map[string]interface{}{"AttributeName": "GSI_EMAIL_PK", "KeyType": "HASH"},
-					map[string]interface{}{"AttributeName": "SK", "KeyType": "RANGE"},
+				"KeySchema": assertions.Match_ArrayWith(&[]any{
+					map[string]any{"AttributeName": "GSI_EMAIL_PK", "KeyType": "HASH"},
+					map[string]any{"AttributeName": "SK", "KeyType": "RANGE"},
 				}),
-				"Projection": map[string]interface{}{"ProjectionType": "ALL"},
+				"Projection": map[string]any{"ProjectionType": "ALL"},
 			},
 		}),
 	})
 
-	template.ResourcePropertiesCountIs(_jsii_.String("AWS::DynamoDB::Table"), map[string]interface{}{
+	template.ResourcePropertiesCountIs(_jsii_.String("AWS::DynamoDB::Table"), map[string]any{
 		"TableName": assertions.Match_AnyValue(),
 	}, _jsii_.Number(0))
 
-	template.HasResource(_jsii_.String("AWS::DynamoDB::Table"), map[string]interface{}{
+	template.HasResource(_jsii_.String("AWS::DynamoDB::Table"), map[string]any{
 		"DeletionPolicy":      "Delete",
 		"UpdateReplacePolicy": "Delete",
 	})
 
-	template.HasOutput(_jsii_.String("TableNameOutput"), map[string]interface{}{
-		"Export": map[string]interface{}{
+	template.HasOutput(_jsii_.String("TableNameOutput"), map[string]any{
+		"Export": map[string]any{
 			"Name": "me-dev-data:table-name",
 		},
 	})

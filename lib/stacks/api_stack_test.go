@@ -16,7 +16,13 @@ func TestApiStack(t *testing.T) {
 
 	ensurePlaceholderAPIArtifact(t)
 
-	app := awscdk.NewApp(nil)
+	context := map[string]any{
+		"appDomain":         "www.example.com",
+		"appCertificateArn": "arn:aws:acm:us-east-1:123456789012:certificate/frontend",
+		"apiDomain":         "api.example.com",
+		"apiCertificateArn": "arn:aws:acm:ap-northeast-1:123456789012:certificate/api",
+	}
+	app := awscdk.NewApp(&awscdk.AppProps{Context: &context})
 	cfg := config.Load(app)
 	dataStack := NewDataStack(app, cfg.StackName("data"), &StackProps{
 		StackProps: cfg.StackProps(),
@@ -38,16 +44,18 @@ func TestApiStack(t *testing.T) {
 	template.ResourceCountIs(_jsii_.String("AWS::ApiGatewayV2::Route"), _jsii_.Number(1))
 	template.ResourceCountIs(_jsii_.String("AWS::Lambda::Permission"), _jsii_.Number(1))
 	template.ResourceCountIs(_jsii_.String("AWS::Logs::LogGroup"), _jsii_.Number(1))
+	template.ResourceCountIs(_jsii_.String("AWS::ApiGatewayV2::DomainName"), _jsii_.Number(1))
+	template.ResourceCountIs(_jsii_.String("AWS::ApiGatewayV2::ApiMapping"), _jsii_.Number(1))
 
-	template.HasResourceProperties(_jsii_.String("AWS::Lambda::Function"), map[string]interface{}{
+	template.HasResourceProperties(_jsii_.String("AWS::Lambda::Function"), map[string]any{
 		"FunctionName": "me-dev-api",
 		"Runtime":      "provided.al2023",
-		"Architectures": []interface{}{
+		"Architectures": []any{
 			"arm64",
 		},
 		"Handler": "bootstrap",
-		"Environment": map[string]interface{}{
-			"Variables": assertions.Match_ObjectLike(&map[string]interface{}{
+		"Environment": map[string]any{
+			"Variables": assertions.Match_ObjectLike(&map[string]any{
 				"DYNAMODB_TABLE_NAME": assertions.Match_AnyValue(),
 				"JWT_SECRET":          assertions.Match_AnyValue(),
 				"QIITA_TOKEN":         "replace-me",
@@ -58,30 +66,61 @@ func TestApiStack(t *testing.T) {
 		},
 	})
 
-	template.HasResourceProperties(_jsii_.String("AWS::ApiGatewayV2::Api"), map[string]interface{}{
-		"Name":         "me-dev-http-api",
-		"ProtocolType": "HTTP",
+	template.HasResourceProperties(_jsii_.String("AWS::ApiGatewayV2::Api"), map[string]any{
+		"Name":                      "me-dev-http-api",
+		"ProtocolType":              "HTTP",
+		"DisableExecuteApiEndpoint": true,
+		"CorsConfiguration": map[string]any{
+			"AllowHeaders": []any{
+				"Authorization",
+				"Content-Type",
+			},
+			"AllowMethods": []any{
+				"GET",
+				"HEAD",
+				"OPTIONS",
+				"POST",
+				"PUT",
+				"PATCH",
+				"DELETE",
+			},
+			"AllowOrigins": []any{
+				"https://www.example.com",
+			},
+			"MaxAge": 3600,
+		},
 	})
 
-	template.HasResourceProperties(_jsii_.String("AWS::Logs::LogGroup"), map[string]interface{}{
+	template.HasResourceProperties(_jsii_.String("AWS::ApiGatewayV2::DomainName"), map[string]any{
+		"DomainName": "api.example.com",
+	})
+
+	template.HasResourceProperties(_jsii_.String("AWS::Logs::LogGroup"), map[string]any{
 		"LogGroupName":    "/aws/lambda/me-dev-api",
 		"RetentionInDays": 30,
 	})
 
-	template.HasResource(_jsii_.String("AWS::Logs::LogGroup"), map[string]interface{}{
+	template.HasResource(_jsii_.String("AWS::Logs::LogGroup"), map[string]any{
 		"DeletionPolicy":      "Delete",
 		"UpdateReplacePolicy": "Delete",
 	})
 
-	template.HasOutput(_jsii_.String("ApiFunctionNameOutput"), map[string]interface{}{
-		"Export": map[string]interface{}{
+	template.HasOutput(_jsii_.String("ApiFunctionNameOutput"), map[string]any{
+		"Export": map[string]any{
 			"Name": "me-dev-api:function-name",
 		},
 	})
 
-	template.HasOutput(_jsii_.String("ApiEndpointOutput"), map[string]interface{}{
-		"Export": map[string]interface{}{
+	template.HasOutput(_jsii_.String("ApiEndpointOutput"), map[string]any{
+		"Value": "https://api.example.com",
+		"Export": map[string]any{
 			"Name": "me-dev-api:endpoint",
+		},
+	})
+
+	template.HasOutput(_jsii_.String("ApiCustomDomainRegionalHostedZoneIdOutput"), map[string]any{
+		"Export": map[string]any{
+			"Name": "me-dev-api:custom-domain-regional-hosted-zone-id",
 		},
 	})
 }

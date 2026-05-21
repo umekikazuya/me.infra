@@ -14,36 +14,27 @@ func TestWebStack(t *testing.T) {
 
 	ensurePlaceholderAPIArtifact(t)
 
-	app := awscdk.NewApp(nil)
+	context := map[string]any{
+		"appDomain":         "www.example.com",
+		"appCertificateArn": "arn:aws:acm:us-east-1:123456789012:certificate/frontend",
+	}
+	app := awscdk.NewApp(&awscdk.AppProps{Context: &context})
 	cfg := config.Load(app)
-
-	dataStack := NewDataStack(app, cfg.StackName("data"), &StackProps{
-		StackProps: cfg.StackProps(),
-		Config:     cfg,
-	})
-
-	apiStack := NewApiStack(app, cfg.StackName("api"), &StackProps{
-		StackProps: cfg.StackProps(),
-		Config:     cfg,
-		Data:       dataStack,
-	})
 
 	stack := NewWebStack(app, cfg.StackName("web"), &StackProps{
 		StackProps: cfg.StackProps(),
 		Config:     cfg,
-		Api:        apiStack,
-		Data:       dataStack,
 	})
 
 	template := assertions.Template_FromStack(stack.Stack, nil)
 
 	template.ResourceCountIs(_jsii_.String("AWS::S3::Bucket"), _jsii_.Number(1))
 	template.ResourceCountIs(_jsii_.String("AWS::CloudFront::Distribution"), _jsii_.Number(1))
-	template.ResourceCountIs(_jsii_.String("AWS::CloudFront::Function"), _jsii_.Number(2))
+	template.ResourceCountIs(_jsii_.String("AWS::CloudFront::Function"), _jsii_.Number(1))
 	template.ResourceCountIs(_jsii_.String("AWS::CloudFront::OriginAccessControl"), _jsii_.Number(1))
 
-	template.HasResourceProperties(_jsii_.String("AWS::S3::Bucket"), map[string]interface{}{
-		"PublicAccessBlockConfiguration": map[string]interface{}{
+	template.HasResourceProperties(_jsii_.String("AWS::S3::Bucket"), map[string]any{
+		"PublicAccessBlockConfiguration": map[string]any{
 			"BlockPublicAcls":       true,
 			"BlockPublicPolicy":     true,
 			"IgnorePublicAcls":      true,
@@ -51,81 +42,60 @@ func TestWebStack(t *testing.T) {
 		},
 	})
 
-	template.HasResource(_jsii_.String("AWS::S3::Bucket"), map[string]interface{}{
+	template.HasResource(_jsii_.String("AWS::S3::Bucket"), map[string]any{
 		"DeletionPolicy":      "Delete",
 		"UpdateReplacePolicy": "Delete",
 	})
 
-	template.HasResourceProperties(_jsii_.String("AWS::CloudFront::Function"), map[string]interface{}{
+	template.HasResourceProperties(_jsii_.String("AWS::CloudFront::Function"), map[string]any{
 		"AutoPublish": true,
-		"FunctionConfig": map[string]interface{}{
+		"FunctionConfig": map[string]any{
 			"Comment": "Rewrite SPA routes to /index.html while keeping static asset requests intact.",
 			"Runtime": "cloudfront-js-2.0",
 		},
 	})
 
-	template.HasResourceProperties(_jsii_.String("AWS::CloudFront::Function"), map[string]interface{}{
-		"AutoPublish": true,
-		"FunctionConfig": map[string]interface{}{
-			"Comment": "Strip the /api prefix before forwarding requests to the API origin.",
-			"Runtime": "cloudfront-js-2.0",
-		},
-	})
-
-	template.HasResourceProperties(_jsii_.String("AWS::CloudFront::Distribution"), map[string]interface{}{
-		"DistributionConfig": assertions.Match_ObjectLike(&map[string]interface{}{
+	template.HasResourceProperties(_jsii_.String("AWS::CloudFront::Distribution"), map[string]any{
+		"DistributionConfig": assertions.Match_ObjectLike(&map[string]any{
+			"Aliases": []any{
+				"www.example.com",
+			},
 			"DefaultRootObject": "index.html",
 			"PriceClass":        "PriceClass_200",
-			"DefaultCacheBehavior": assertions.Match_ObjectLike(&map[string]interface{}{
+			"DefaultCacheBehavior": assertions.Match_ObjectLike(&map[string]any{
 				"ViewerProtocolPolicy": "redirect-to-https",
-				"FunctionAssociations": assertions.Match_ArrayWith(&[]interface{}{
-					assertions.Match_ObjectLike(&map[string]interface{}{
+				"FunctionAssociations": assertions.Match_ArrayWith(&[]any{
+					assertions.Match_ObjectLike(&map[string]any{
 						"EventType":   "viewer-request",
 						"FunctionARN": assertions.Match_AnyValue(),
 					}),
 				}),
 			}),
-			"CacheBehaviors": assertions.Match_ArrayWith(&[]interface{}{
-				assertions.Match_ObjectLike(&map[string]interface{}{
-					"PathPattern": "/api/*",
-					"AllowedMethods": assertions.Match_ArrayWith(&[]interface{}{
-						"GET",
-						"HEAD",
-						"OPTIONS",
-						"PUT",
-						"PATCH",
-						"POST",
-						"DELETE",
-					}),
-					"FunctionAssociations": assertions.Match_ArrayWith(&[]interface{}{
-						assertions.Match_ObjectLike(&map[string]interface{}{
-							"EventType":   "viewer-request",
-							"FunctionARN": assertions.Match_AnyValue(),
-						}),
-					}),
-					"ViewerProtocolPolicy":  "redirect-to-https",
-					"CachePolicyId":         assertions.Match_AnyValue(),
-					"OriginRequestPolicyId": assertions.Match_AnyValue(),
-				}),
-			}),
 		}),
 	})
 
-	template.HasOutput(_jsii_.String("FrontendBucketNameOutput"), map[string]interface{}{
-		"Export": map[string]interface{}{
+	template.HasOutput(_jsii_.String("FrontendBucketNameOutput"), map[string]any{
+		"Export": map[string]any{
 			"Name": "me-dev-web:bucket-name",
 		},
 	})
 
-	template.HasOutput(_jsii_.String("FrontendDistributionIdOutput"), map[string]interface{}{
-		"Export": map[string]interface{}{
+	template.HasOutput(_jsii_.String("FrontendDistributionIdOutput"), map[string]any{
+		"Export": map[string]any{
 			"Name": "me-dev-web:distribution-id",
 		},
 	})
 
-	template.HasOutput(_jsii_.String("FrontendDistributionDomainNameOutput"), map[string]interface{}{
-		"Export": map[string]interface{}{
+	template.HasOutput(_jsii_.String("FrontendDistributionDomainNameOutput"), map[string]any{
+		"Export": map[string]any{
 			"Name": "me-dev-web:distribution-domain-name",
+		},
+	})
+
+	template.HasOutput(_jsii_.String("FrontendEndpointOutput"), map[string]any{
+		"Value": "https://www.example.com",
+		"Export": map[string]any{
+			"Name": "me-dev-web:endpoint",
 		},
 	})
 }

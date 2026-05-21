@@ -2,6 +2,7 @@ package stacks
 
 import (
 	"github.com/aws/aws-cdk-go/awscdk/v2"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awscertificatemanager"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awscloudfront"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awscloudfrontorigins"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awss3"
@@ -11,10 +12,9 @@ import (
 
 type WebStack struct {
 	awscdk.Stack
-	Bucket             awss3.Bucket
-	Distribution       awscloudfront.Distribution
-	RewriteFunction    awscloudfront.Function
-	APIRewriteFunction awscloudfront.Function
+	Bucket          awss3.Bucket
+	Distribution    awscloudfront.Distribution
+	RewriteFunction awscloudfront.Function
 }
 
 func NewWebStack(scope constructs.Construct, id string, props *StackProps) *WebStack {
@@ -24,15 +24,11 @@ func NewWebStack(scope constructs.Construct, id string, props *StackProps) *WebS
 	if props.Config == nil {
 		panic("web stack requires app config")
 	}
-	if props.Api == nil {
-		panic("web stack requires api stack")
-	}
 
 	stack := newStack(scope, id, props)
 	webStack := &WebStack{Stack: stack}
 
 	cfg := props.Config
-	api := props.Api
 
 	bucket := awss3.NewBucket(stack, _jsii_.String("FrontendBucket"), &awss3.BucketProps{
 		BlockPublicAccess: awss3.BlockPublicAccess_BLOCK_ALL(),
@@ -69,28 +65,7 @@ func NewWebStack(scope constructs.Construct, id string, props *StackProps) *WebS
 		Runtime: awscloudfront.FunctionRuntime_JS_2_0(),
 	})
 
-	apiRewriteFunction := awscloudfront.NewFunction(stack, _jsii_.String("ApiRewriteFunction"), &awscloudfront.FunctionProps{
-		Comment: _jsii_.String("Strip the /api prefix before forwarding requests to the API origin."),
-		Code: awscloudfront.FunctionCode_FromInline(_jsii_.String(`function handler(event) {
-  var request = event.request;
-
-  if (request.uri === '/api') {
-    request.uri = '/';
-    return request;
-  }
-
-  if (request.uri.startsWith('/api/')) {
-    request.uri = request.uri.substring(4);
-  }
-
-  return request;
-}`)),
-		Runtime: awscloudfront.FunctionRuntime_JS_2_0(),
-	})
-
-	apiDomainName := awscdk.Fn_Select(_jsii_.Number(2), awscdk.Fn_Split(_jsii_.String("/"), api.HTTPAPI.ApiEndpoint(), nil))
-
-	distribution := awscloudfront.NewDistribution(stack, _jsii_.String("FrontendDistribution"), &awscloudfront.DistributionProps{
+	distributionProps := &awscloudfront.DistributionProps{
 		Comment:           _jsii_.String("me frontend distribution"),
 		DefaultRootObject: _jsii_.String("index.html"),
 		PriceClass:        awscloudfront.PriceClass_PRICE_CLASS_200,
@@ -106,22 +81,19 @@ func NewWebStack(scope constructs.Construct, id string, props *StackProps) *WebS
 				},
 			},
 		},
-		AdditionalBehaviors: &map[string]*awscloudfront.BehaviorOptions{
-			"/api/*": {
-				Origin:         awscloudfrontorigins.NewHttpOrigin(apiDomainName, nil),
-				AllowedMethods: awscloudfront.AllowedMethods_ALLOW_ALL(),
-				CachePolicy:    awscloudfront.CachePolicy_CACHING_DISABLED(),
-				FunctionAssociations: &[]*awscloudfront.FunctionAssociation{
-					{
-						EventType: awscloudfront.FunctionEventType_VIEWER_REQUEST,
-						Function:  apiRewriteFunction,
-					},
-				},
-				OriginRequestPolicy:  awscloudfront.OriginRequestPolicy_ALL_VIEWER_EXCEPT_HOST_HEADER(),
-				ViewerProtocolPolicy: awscloudfront.ViewerProtocolPolicy_REDIRECT_TO_HTTPS,
-			},
-		},
-	})
+	}
+	if cfg.HasFrontendCustomDomain() {
+		distributionProps.Certificate = awscertificatemanager.Certificate_FromCertificateArn(
+			stack,
+			_jsii_.String("FrontendCertificate"),
+			_jsii_.String(cfg.Domain.AppCertificateARN),
+		)
+		distributionProps.DomainNames = &[]*string{
+			_jsii_.String(cfg.Domain.AppDomain),
+		}
+	}
+
+	distribution := awscloudfront.NewDistribution(stack, _jsii_.String("FrontendDistribution"), distributionProps)
 
 	awscdk.NewCfnOutput(stack, _jsii_.String("FrontendBucketNameOutput"), &awscdk.CfnOutputProps{
 		Value:      bucket.BucketName(),
@@ -138,10 +110,22 @@ func NewWebStack(scope constructs.Construct, id string, props *StackProps) *WebS
 		ExportName: _jsii_.String(cfg.ExportName("web", "distribution-domain-name")),
 	})
 
+	frontendEndpoint := awscdk.Fn_Join(_jsii_.String(""), &[]*string{
+		_jsii_.String("https://"),
+		distribution.DistributionDomainName(),
+	})
+	if cfg.HasFrontendCustomDomain() {
+		frontendEndpoint = _jsii_.String(cfg.FrontendURL())
+	}
+
+	awscdk.NewCfnOutput(stack, _jsii_.String("FrontendEndpointOutput"), &awscdk.CfnOutputProps{
+		Value:      frontendEndpoint,
+		ExportName: _jsii_.String(cfg.ExportName("web", "endpoint")),
+	})
+
 	webStack.Bucket = bucket
 	webStack.Distribution = distribution
 	webStack.RewriteFunction = rewriteFunction
-	webStack.APIRewriteFunction = apiRewriteFunction
 
 	return webStack
 }

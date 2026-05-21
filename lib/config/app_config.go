@@ -29,10 +29,18 @@ type DataConfig struct {
 	QiitaToken   string
 }
 
+type DomainConfig struct {
+	AppDomain         string
+	AppCertificateARN string
+	APIDomain         string
+	APICertificateARN string
+}
+
 type AppConfig struct {
 	AppName     string
 	Environment EnvironmentConfig
 	Data        DataConfig
+	Domain      DomainConfig
 }
 
 func Load(app awscdk.App) *AppConfig {
@@ -45,6 +53,13 @@ func Load(app awscdk.App) *AppConfig {
 	logLevel := contextString(app, "logLevel", "info")
 	jwtSecret := contextString(app, "jwtSecret", generateJWTSecret())
 	qiitaToken := contextString(app, "qiitaToken", "replace-me")
+	appDomain := contextString(app, "appDomain", "")
+	appCertificateARN := contextString(app, "appCertificateArn", "")
+	apiDomain := contextString(app, "apiDomain", "")
+	apiCertificateARN := contextString(app, "apiCertificateArn", "")
+
+	validateDomainPair("appDomain", appDomain, "appCertificateArn", appCertificateARN)
+	validateDomainPair("apiDomain", apiDomain, "apiCertificateArn", apiCertificateARN)
 
 	return &AppConfig{
 		AppName: AppName,
@@ -66,6 +81,12 @@ func Load(app awscdk.App) *AppConfig {
 			JWTSecret:    jwtSecret,
 			QiitaToken:   qiitaToken,
 		},
+		Domain: DomainConfig{
+			AppDomain:         appDomain,
+			AppCertificateARN: appCertificateARN,
+			APIDomain:         apiDomain,
+			APICertificateARN: apiCertificateARN,
+		},
 	}
 }
 
@@ -83,6 +104,30 @@ func (c *AppConfig) APILogGroupName() string {
 
 func (c *AppConfig) ExportName(stackName, exportName string) string {
 	return fmt.Sprintf("%s:%s", c.StackName(stackName), exportName)
+}
+
+func (c *AppConfig) HasFrontendCustomDomain() bool {
+	return c.Domain.AppDomain != "" && c.Domain.AppCertificateARN != ""
+}
+
+func (c *AppConfig) HasAPICustomDomain() bool {
+	return c.Domain.APIDomain != "" && c.Domain.APICertificateARN != ""
+}
+
+func (c *AppConfig) FrontendURL() string {
+	if !c.HasFrontendCustomDomain() {
+		return ""
+	}
+
+	return "https://" + c.Domain.AppDomain
+}
+
+func (c *AppConfig) APIURL() string {
+	if !c.HasAPICustomDomain() {
+		return ""
+	}
+
+	return "https://" + c.Domain.APIDomain
 }
 
 func (c *AppConfig) EnvironmentRef() *awscdk.Environment {
@@ -127,4 +172,12 @@ func generateJWTSecret() string {
 	}
 
 	return base64.RawURLEncoding.EncodeToString(buf)
+}
+
+func validateDomainPair(domainKey, domainValue, certKey, certValue string) {
+	if (domainValue == "") == (certValue == "") {
+		return
+	}
+
+	panic(fmt.Sprintf("%s and %s must be provided together", domainKey, certKey))
 }

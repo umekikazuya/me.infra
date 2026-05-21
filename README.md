@@ -46,8 +46,13 @@ CDK アプリは以下の context key を読みます。
 - `logLevel`（default: `info`）
 - `jwtSecret`（optional: 未指定なら synth / deploy ごとに自動生成）
 - `qiitaToken`（default: `replace-me`）
+- `appDomain`（optional: 例 `www.example.com`）
+- `appCertificateArn`（optional: CloudFront 用 ACM certificate ARN。`appDomain` とセット）
+- `apiDomain`（optional: 例 `api.example.com`）
+- `apiCertificateArn`（optional: API Gateway 用 ACM certificate ARN。`apiDomain` とセット）
 
 `account` と `region` は `-c` で渡すか、`CDK_DEFAULT_ACCOUNT` / `CDK_DEFAULT_REGION` から読みます。
+`appDomain` / `appCertificateArn`、`apiDomain` / `apiCertificateArn` はそれぞれセットで渡します。DNS と証明書はこの repo では作らず、外部管理を前提にしています。
 
 `DataStack` で作るもの:
 
@@ -64,17 +69,23 @@ DynamoDB table 名は code/context で固定せず、CloudFormation の自動命
 
 - `me-<env>-api` という名前の Lambda
 - API Gateway HTTP API
+- optional の custom domain (`apiDomain`, `apiCertificateArn` を渡した場合)
 - CloudWatch Logs の log group
 - `DYNAMODB_TABLE_NAME`, `JWT_SECRET`, `QIITA_TOKEN`, `ME_ID`, `ZENN_USERNAME`, `LOG_LEVEL` の env 配線
+- frontend custom domain がある場合は `https://<appDomain>` からの CORS を許可
+
+`apiDomain` と `apiCertificateArn` を渡すと、API Gateway の default `execute-api` endpoint は無効化され、公開 URL は custom domain に切り替わります。
 
 `WebStack` で作るもの:
 
 - frontend 配信用の private S3 bucket
 - S3 向け OAC を含む CloudFront distribution
 - CloudFront は `PriceClass 200` に固定
-- `/api/*` を API Gateway へ向ける behavior（origin へ渡す前に `/api` prefix を削除）
 - SPA rewrite 用の CloudFront Function
-- frontend bucket 名、distribution ID、distribution domain name の outputs
+- optional の frontend custom domain (`appDomain`, `appCertificateArn` を渡した場合)
+- frontend bucket 名、distribution ID、distribution domain name、frontend endpoint の outputs
+
+frontend と API は別 origin です。frontend は CloudFront/S3、API は API Gateway custom domain で公開します。
 
 このリポジトリの v1 default は検証環境の後片付けコストを下げるため destroy 寄りです。stack を削除すると DynamoDB、CloudWatch Logs、frontend bucket 内の object も保持せず削除されます。
 
@@ -93,6 +104,17 @@ cdk synth -c envName=dev
 ```
 
 placeholder API は synth 前に自動 package されます。
+
+custom domain ありで synth する例:
+
+```sh
+cdk synth \
+  -c envName=dev \
+  -c appDomain=www.example.com \
+  -c appCertificateArn=<cloudfront-certificate-arn> \
+  -c apiDomain=www.example.com \
+  -c apiCertificateArn=<api-certificate-arn>
+```
 
 diff:
 
@@ -114,6 +136,10 @@ AWS_PROFILE=<profile> cdk deploy \
   me-dev-api \
   me-dev-web \
   -c envName=dev \
+  -c appDomain=<frontend-domain> \
+  -c appCertificateArn=<cloudfront-certificate-arn> \
+  -c apiDomain=<api-domain> \
+  -c apiCertificateArn=<api-certificate-arn> \
   -c meId=<me-id> \
   -c zennUsername=<zenn-username> \
   -c qiitaToken=<qiita-token> \
@@ -132,6 +158,7 @@ AWS_PROFILE=<profile> cdk deploy \
 3. `me-<env>-web`
 
 初回の `ApiStack` では `cmd/placeholder-api/` の placeholder Lambda を使います。これにより、app repo 側が本物の backend code を publish する前に、Lambda・IAM・API Gateway・log group を先に作れます。
+custom domain を使う場合は、frontend / API 用の certificate ARN を context で渡します。DNS record 自体は外部で管理します。
 
 例:
 
@@ -141,6 +168,10 @@ AWS_PROFILE=<profile> cdk deploy \
   me-dev-api \
   me-dev-web \
   -c envName=dev \
+  -c appDomain=<frontend-domain> \
+  -c appCertificateArn=<cloudfront-certificate-arn> \
+  -c apiDomain=<api-domain> \
+  -c apiCertificateArn=<api-certificate-arn> \
   -c meId=<me-id> \
   -c zennUsername=<zenn-username> \
   -c qiitaToken=<qiita-token> \
@@ -173,8 +204,9 @@ aws lambda update-function-code \
 契約:
 
 - function name 形式は `me-<env>-api`
-- infra repo は Lambda の設定、IAM、API Gateway、logs、env wiring を持つ
+- infra repo は Lambda の設定、IAM、API Gateway、custom domain、logs、env wiring を持つ
 - app repo は backend artifact の build と `update-function-code` を持つ
+- app repo は API base URL として `ApiEndpointOutput` の値を使う
 
 ### 4. app repo から frontend を deploy する
 
@@ -189,20 +221,32 @@ aws cloudfront create-invalidation --distribution-id <distribution-id> --paths '
 
 - 成果物は `frontend/dist/`
 - app repo は `aws s3 sync` と invalidation を持つ
-- infra repo は S3 bucket と CloudFront distribution を持つ
+- infra repo は S3 bucket、CloudFront distribution、frontend custom domain の受け口を持つ
+- app repo は API base URL を build-time か runtime config で注入する
 
 ### 5. app repo 側が必要とする契約値
 
 環境ごとに app repo workflow が必要とする値は以下です。
 
-| 値                                  | 例                                                        |
-| ----------------------------------- | --------------------------------------------------------- |
-| Lambda function name                | `me-dev-api`                                              |
-| Frontend bucket name                | `FrontendBucketNameOutput` で export される値             |
-| CloudFront distribution ID          | `FrontendDistributionIdOutput` で export される値         |
-| CloudFront distribution domain name | `FrontendDistributionDomainNameOutput` で export される値 |
+| 値                         | 例                                                |
+| -------------------------- | ------------------------------------------------- |
+| Lambda function name       | `me-dev-api`                                      |
+| API endpoint               | `ApiEndpointOutput` で export される値            |
+| Frontend bucket name       | `FrontendBucketNameOutput` で export される値     |
+| CloudFront distribution ID | `FrontendDistributionIdOutput` で export される値 |
+| Frontend endpoint          | `FrontendEndpointOutput` で export される値       |
 
 これらは CDK stack が出力するので、app repo workflow に deploy input として渡します。
+
+### 6. 外部 DNS 管理側が必要とする契約値
+
+DNS record はこの repo では作りません。外部の DNS 管理系では以下の出力値を使って record を張ります。
+
+| 値                                          | 用途                                       |
+| ------------------------------------------- | ------------------------------------------ |
+| `ApiCustomDomainRegionalNameOutput`         | `api.<domain>` の CNAME / Alias target     |
+| `ApiCustomDomainRegionalHostedZoneIdOutput` | Route 53 Alias を使う場合の hosted zone ID |
+| `FrontendDistributionDomainNameOutput`      | `www.<domain>` の CNAME / Alias target     |
 
 ## リポジトリ構成
 
@@ -222,9 +266,11 @@ bootstrap 段階では placeholder を含む `DataStack`、`ApiStack`、`WebStac
 - 初回コードは `cmd/placeholder-api/` から作る
 - 生成された placeholder zip は `.artifacts/` 配下に置き、commit しない
 - 初回 deploy 後は app repo の GitHub Actions が `aws lambda update-function-code` でコード更新する
+- API Gateway / DynamoDB / deploy role は env ごとに分離する
 
 ## Frontend デプロイ契約
 
 - app repo が `frontend/dist/` を `aws s3 sync` で配信する
 - app repo が `aws cloudfront create-invalidation` を実行する
 - infra repo は bucket 名と CloudFront distribution ID を app repo workflow に渡す前提で管理する
+- frontend は `www.<domain>`、API は `api.<domain>` の別 origin 構成
