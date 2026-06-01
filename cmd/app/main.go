@@ -18,7 +18,7 @@ func main() {
 		Config:     cfg,
 	})
 
-	apiStack := stacks.NewApiStack(app, cfg.StackName("api"), &stacks.StackProps{
+	stacks.NewApiStack(app, cfg.StackName("api"), &stacks.StackProps{
 		StackProps: cfg.StackProps(),
 		Config:     cfg,
 		Data:       dataStack,
@@ -27,8 +27,6 @@ func main() {
 	stacks.NewWebStack(app, cfg.StackName("web"), &stacks.StackProps{
 		StackProps: cfg.StackProps(),
 		Config:     cfg,
-		Api:        apiStack,
-		Data:       dataStack,
 	})
 
 	app.Synth(nil)

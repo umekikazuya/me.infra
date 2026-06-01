@@ -45,6 +45,22 @@ func TestLoadDefaults(t *testing.T) {
 		t.Fatalf("Data.QiitaToken = %q, want %q", cfg.Data.QiitaToken, "replace-me")
 	}
 
+	if cfg.Domain.AppDomain != "" {
+		t.Fatalf("Domain.AppDomain = %q, want empty", cfg.Domain.AppDomain)
+	}
+
+	if cfg.Domain.APIDomain != "" {
+		t.Fatalf("Domain.APIDomain = %q, want empty", cfg.Domain.APIDomain)
+	}
+
+	if cfg.HasFrontendCustomDomain() {
+		t.Fatal("HasFrontendCustomDomain() = true, want false")
+	}
+
+	if cfg.HasAPICustomDomain() {
+		t.Fatal("HasAPICustomDomain() = true, want false")
+	}
+
 	if cfg.StackName("data") != "me-dev-data" {
 		t.Fatalf("StackName(data) = %q, want %q", cfg.StackName("data"), "me-dev-data")
 	}
@@ -69,16 +85,20 @@ func TestLoadDefaults(t *testing.T) {
 func TestLoadUsesContextOverrides(t *testing.T) {
 	defer _jsii_.Close()
 
-	context := map[string]interface{}{
-		"envName":      "prod",
-		"account":      "123456789012",
-		"region":       "ap-northeast-1",
-		"prefix":       "me-prod",
-		"meId":         "umeki",
-		"zennUsername": "umekikazuya",
-		"logLevel":     "debug",
-		"jwtSecret":    "test-jwt-secret",
-		"qiitaToken":   "test-qiita-token",
+	context := map[string]any{
+		"envName":           "prod",
+		"account":           "123456789012",
+		"region":            "ap-northeast-1",
+		"prefix":            "me-prod",
+		"meId":              "umeki",
+		"zennUsername":      "umekikazuya",
+		"logLevel":          "debug",
+		"jwtSecret":         "test-jwt-secret",
+		"qiitaToken":        "test-qiita-token",
+		"appDomain":         "www.example.com",
+		"appCertificateArn": "arn:aws:acm:us-east-1:123456789012:certificate/frontend",
+		"apiDomain":         "api.example.com",
+		"apiCertificateArn": "arn:aws:acm:ap-northeast-1:123456789012:certificate/api",
 	}
 
 	app := awscdk.NewApp(&awscdk.AppProps{Context: &context})
@@ -120,6 +140,30 @@ func TestLoadUsesContextOverrides(t *testing.T) {
 		t.Fatalf("Data.QiitaToken = %q, want %q", cfg.Data.QiitaToken, "test-qiita-token")
 	}
 
+	if cfg.Domain.AppDomain != "www.example.com" {
+		t.Fatalf("Domain.AppDomain = %q, want %q", cfg.Domain.AppDomain, "www.example.com")
+	}
+
+	if cfg.Domain.APIDomain != "api.example.com" {
+		t.Fatalf("Domain.APIDomain = %q, want %q", cfg.Domain.APIDomain, "api.example.com")
+	}
+
+	if !cfg.HasFrontendCustomDomain() {
+		t.Fatal("HasFrontendCustomDomain() = false, want true")
+	}
+
+	if !cfg.HasAPICustomDomain() {
+		t.Fatal("HasAPICustomDomain() = false, want true")
+	}
+
+	if cfg.FrontendURL() != "https://www.example.com" {
+		t.Fatalf("FrontendURL() = %q, want %q", cfg.FrontendURL(), "https://www.example.com")
+	}
+
+	if cfg.APIURL() != "https://api.example.com" {
+		t.Fatalf("APIURL() = %q, want %q", cfg.APIURL(), "https://api.example.com")
+	}
+
 	if cfg.APIFunctionName() != "me-prod-api" {
 		t.Fatalf("APIFunctionName() = %q, want %q", cfg.APIFunctionName(), "me-prod-api")
 	}
@@ -136,4 +180,22 @@ func TestLoadUsesContextOverrides(t *testing.T) {
 	if got := *env.Region; got != "ap-northeast-1" {
 		t.Fatalf("EnvironmentRef().Region = %q, want %q", got, "ap-northeast-1")
 	}
+}
+
+func TestLoadPanicsOnIncompleteDomainPair(t *testing.T) {
+	defer _jsii_.Close()
+
+	context := map[string]any{
+		"apiDomain": "api.example.com",
+	}
+
+	app := awscdk.NewApp(&awscdk.AppProps{Context: &context})
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Load() should panic when apiDomain is set without apiCertificateArn")
+		}
+	}()
+
+	Load(app)
 }
