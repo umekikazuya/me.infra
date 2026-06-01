@@ -76,6 +76,27 @@ DynamoDB table 名は code/context で固定せず、CloudFormation の自動命
 
 `apiDomain` と `apiCertificateArn` を渡すと、API Gateway の default `execute-api` endpoint は無効化され、公開 URL は custom domain に切り替わります。
 
+### CORS の責務分担（API Gateway / アプリ）
+
+このリポジトリでは、CORS は以下の境界で運用します。
+
+- API Gateway (HTTP API) 側で管理するもの
+  - preflight (`OPTIONS`) 応答
+  - 許可 origin / method / header
+  - `maxAge` など preflight キャッシュ設定
+- アプリ（Lambda 実装）側で管理するもの
+  - 認証・認可（CORS とは別責務）
+  - 業務レスポンス本体とエラーレスポンスの内容
+  - API Gateway で表現できない個別ヘッダー制御が必要な場合の追加対応
+
+現行の `ApiStack` では `appDomain` がある場合に `CorsPreflight` を有効化し、`https://<appDomain>` のみを `AllowOrigins` に設定します。`AllowHeaders` は `Authorization` / `Content-Type`、`AllowMethods` は `GET,HEAD,OPTIONS,POST,PUT,PATCH,DELETE` を許可します。
+
+運用ルール:
+
+- CORS ヘッダー設定は API Gateway 側を正とし、アプリ側で同じヘッダーを二重付与しない
+- `allowCredentials` を使う場合は wildcard origin (`*`) を使わず、明示 origin を列挙する
+- frontend domain を変更した場合は `appDomain` を更新して再 deploy する
+
 `WebStack` で作るもの:
 
 - frontend 配信用の private S3 bucket
