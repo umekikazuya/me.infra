@@ -71,9 +71,11 @@ func TestApiStack(t *testing.T) {
 		"ProtocolType":              "HTTP",
 		"DisableExecuteApiEndpoint": true,
 		"CorsConfiguration": map[string]any{
+			"AllowCredentials": true,
 			"AllowHeaders": []any{
 				"Authorization",
 				"Content-Type",
+				"X-Requested-With",
 			},
 			"AllowMethods": []any{
 				"GET",

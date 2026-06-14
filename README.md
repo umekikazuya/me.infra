@@ -72,7 +72,8 @@ DynamoDB table 名は code/context で固定せず、CloudFormation の自動命
 - optional の custom domain (`apiDomain`, `apiCertificateArn` を渡した場合)
 - CloudWatch Logs の log group
 - `DYNAMODB_TABLE_NAME`, `JWT_SECRET`, `QIITA_TOKEN`, `ME_ID`, `ZENN_USERNAME`, `LOG_LEVEL` の env 配線
-- frontend custom domain がある場合は `https://<appDomain>` からの CORS を許可
+- frontend custom domain がある場合は `CORS_ALLOWED_ORIGINS=https://<appDomain>` を Lambda env に追加
+- frontend custom domain がある場合は `https://<appDomain>` からの CORS を API Gateway で許可
 
 `apiDomain` と `apiCertificateArn` を渡すと、API Gateway の default `execute-api` endpoint は無効化され、公開 URL は custom domain に切り替わります。
 
@@ -84,12 +85,15 @@ DynamoDB table 名は code/context で固定せず、CloudFormation の自動命
   - preflight (`OPTIONS`) 応答
   - 許可 origin / method / header
   - `maxAge` など preflight キャッシュ設定
+- infra repo (CDK) 側で管理するもの
+  - `CORS_ALLOWED_ORIGINS` env の配線（`appDomain` から生成）
 - アプリ（Lambda 実装）側で管理するもの
+  - `CORS_ALLOWED_ORIGINS` を使った unsafe method の Origin 検証
   - 認証・認可（CORS とは別責務）
   - 業務レスポンス本体とエラーレスポンスの内容
   - API Gateway で表現できない個別ヘッダー制御が必要な場合の追加対応
 
-現行の `ApiStack` では `appDomain` がある場合に `CorsPreflight` を有効化し、`https://<appDomain>` のみを `AllowOrigins` に設定します。`AllowHeaders` は `Authorization` / `Content-Type`、`AllowMethods` は `GET,HEAD,OPTIONS,POST,PUT,PATCH,DELETE` を許可します。
+現行の `ApiStack` では `appDomain` がある場合に `CorsPreflight` を有効化し、`https://<appDomain>` のみを `AllowOrigins` に設定します。`AllowCredentials=true` を有効にし、`AllowHeaders` は `Authorization` / `Content-Type` / `X-Requested-With`、`AllowMethods` は `GET,HEAD,OPTIONS,POST,PUT,PATCH,DELETE` を許可します。
 
 運用ルール:
 
