@@ -4,7 +4,7 @@
 
 ## v1 スコープ
 
-- 初期スコープは `DataStack`、`ApiStack`、`WebStack`
+- 初期スコープは `DataStack`、`ApiStack`、`WebStack`、`DeployStack`
 - `DomainStack` は本体が固まってから追加する optional 扱い
 - frontend / backend の成果物はこのリポジトリでは build せず、別リポジトリ側で作成してデプロイする
 
@@ -50,9 +50,15 @@ CDK アプリは以下の context key を読みます。
 - `appCertificateArn`（optional: CloudFront 用 ACM certificate ARN。`appDomain` とセット）
 - `apiDomain`（optional: 例 `api.example.com`）
 - `apiCertificateArn`（optional: API Gateway 用 ACM certificate ARN。`apiDomain` とセット）
+- `githubRepo`（default: `GITHUB_REPOSITORY`。未設定時は `replace-owner/replace-repo`）
+- `githubRefPattern`（default: `refs/heads/*`）
+- `deployRoleName`（default: `me-app-deploy`）
 
 `account` と `region` は `-c` で渡すか、`CDK_DEFAULT_ACCOUNT` / `CDK_DEFAULT_REGION` から読みます。
 `appDomain` / `appCertificateArn`、`apiDomain` / `apiCertificateArn` はそれぞれセットで渡します。DNS と証明書はこの repo では作らず、外部管理を前提にしています。
+`githubRepo` は `owner/repo` 形式で渡します。`DeployStack` の trust policy は `repo:<githubRepo>:ref:<githubRefPattern>` で `sub` を制限します。
+
+GitHub Actions では `GITHUB_REPOSITORY` が自動で入るため、`githubRepo` は未指定でも動かせます。明示する場合は `-c githubRepo=$GITHUB_REPOSITORY` を渡します。
 
 `DataStack` で作るもの:
 
@@ -112,6 +118,16 @@ DynamoDB table 名は code/context で固定せず、CloudFormation の自動命
 
 frontend と API は別 origin です。frontend は CloudFront/S3、API は API Gateway custom domain で公開します。
 
+`DeployStack` で作るもの:
+
+- GitHub Actions OIDC provider（`token.actions.githubusercontent.com`）
+- app repo の deploy 用 IAM role（`deployRoleName`）
+- role の最小権限
+  - `lambda:UpdateFunctionCode`（`ApiStack` の Lambda のみ）
+  - `s3:ListBucket`, `s3:GetBucketLocation`, `s3:PutObject`, `s3:DeleteObject`（`WebStack` bucket のみ）
+  - `cloudfront:CreateInvalidation`（`WebStack` distribution のみ）
+- app repo workflow に渡すための role ARN / role name / `sub` pattern の outputs
+
 このリポジトリの v1 default は検証環境の後片付けコストを下げるため destroy 寄りです。stack を削除すると DynamoDB、CloudWatch Logs、frontend bucket 内の object も保持せず削除されます。
 
 ## 基本コマンド
@@ -160,6 +176,7 @@ AWS_PROFILE=<profile> cdk deploy \
   me-dev-data \
   me-dev-api \
   me-dev-web \
+  me-dev-deploy \
   -c envName=dev \
   -c appDomain=<frontend-domain> \
   -c appCertificateArn=<cloudfront-certificate-arn> \
@@ -181,6 +198,7 @@ AWS_PROFILE=<profile> cdk deploy \
 1. `me-<env>-data`
 2. `me-<env>-api`
 3. `me-<env>-web`
+4. `me-<env>-deploy`
 
 初回の `ApiStack` では `cmd/placeholder-api/` の placeholder Lambda を使います。これにより、app repo 側が本物の backend code を publish する前に、Lambda・IAM・API Gateway・log group を先に作れます。
 custom domain を使う場合は、frontend / API 用の certificate ARN を context で渡します。DNS record 自体は外部で管理します。
@@ -192,6 +210,7 @@ AWS_PROFILE=<profile> cdk deploy \
   me-dev-data \
   me-dev-api \
   me-dev-web \
+  me-dev-deploy \
   -c envName=dev \
   -c appDomain=<frontend-domain> \
   -c appCertificateArn=<cloudfront-certificate-arn> \
@@ -260,6 +279,7 @@ aws cloudfront create-invalidation --distribution-id <distribution-id> --paths '
 | Frontend bucket name       | `FrontendBucketNameOutput` で export される値     |
 | CloudFront distribution ID | `FrontendDistributionIdOutput` で export される値 |
 | Frontend endpoint          | `FrontendEndpointOutput` で export される値       |
+| Deploy role ARN            | `DeployRoleArnOutput` で export される値          |
 
 これらは CDK stack が出力するので、app repo workflow に deploy input として渡します。
 
@@ -291,7 +311,7 @@ bootstrap 段階では placeholder を含む `DataStack`、`ApiStack`、`WebStac
 - 初回コードは `cmd/placeholder-api/` から作る
 - 生成された placeholder zip は `.artifacts/` 配下に置き、commit しない
 - 初回 deploy 後は app repo の GitHub Actions が `aws lambda update-function-code` でコード更新する
-- API Gateway / DynamoDB / deploy role は env ごとに分離する
+- app repo のデプロイ認証は IAM User ではなく GitHub OIDC + deploy role を使う
 
 ## Frontend デプロイ契約
 

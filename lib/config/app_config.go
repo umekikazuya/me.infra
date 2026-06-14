@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-cdk-go/awscdk/v2"
 	"github.com/aws/constructs-go/constructs/v10"
@@ -36,11 +37,18 @@ type DomainConfig struct {
 	APICertificateARN string
 }
 
+type DeployConfig struct {
+	GitHubRepo       string
+	GitHubRefPattern string
+	RoleName         string
+}
+
 type AppConfig struct {
 	AppName     string
 	Environment EnvironmentConfig
 	Data        DataConfig
 	Domain      DomainConfig
+	Deploy      DeployConfig
 }
 
 func Load(app awscdk.App) *AppConfig {
@@ -57,9 +65,16 @@ func Load(app awscdk.App) *AppConfig {
 	appCertificateARN := contextString(app, "appCertificateArn", "")
 	apiDomain := contextString(app, "apiDomain", "")
 	apiCertificateARN := contextString(app, "apiCertificateArn", "")
+	githubRepo := contextString(app, "githubRepo", os.Getenv("GITHUB_REPOSITORY"))
+	if githubRepo == "" {
+		githubRepo = "replace-owner/replace-repo"
+	}
+	githubRefPattern := contextString(app, "githubRefPattern", "refs/heads/*")
+	deployRoleName := contextString(app, "deployRoleName", fmt.Sprintf("%s-app-deploy", AppName))
 
 	validateDomainPair("appDomain", appDomain, "appCertificateArn", appCertificateARN)
 	validateDomainPair("apiDomain", apiDomain, "apiCertificateArn", apiCertificateARN)
+	validateGitHubRepo(githubRepo)
 
 	return &AppConfig{
 		AppName: AppName,
@@ -86,6 +101,11 @@ func Load(app awscdk.App) *AppConfig {
 			AppCertificateARN: appCertificateARN,
 			APIDomain:         apiDomain,
 			APICertificateARN: apiCertificateARN,
+		},
+		Deploy: DeployConfig{
+			GitHubRepo:       githubRepo,
+			GitHubRefPattern: githubRefPattern,
+			RoleName:         deployRoleName,
 		},
 	}
 }
@@ -128,6 +148,10 @@ func (c *AppConfig) APIURL() string {
 	}
 
 	return "https://" + c.Domain.APIDomain
+}
+
+func (c *AppConfig) GitHubOIDCSubjectPattern() string {
+	return fmt.Sprintf("repo:%s:ref:%s", c.Deploy.GitHubRepo, c.Deploy.GitHubRefPattern)
 }
 
 func (c *AppConfig) EnvironmentRef() *awscdk.Environment {
@@ -180,4 +204,10 @@ func validateDomainPair(domainKey, domainValue, certKey, certValue string) {
 	}
 
 	panic(fmt.Sprintf("%s and %s must be provided together", domainKey, certKey))
+}
+
+func validateGitHubRepo(repo string) {
+	if strings.Count(repo, "/") != 1 {
+		panic("githubRepo must be in owner/repo format")
+	}
 }
