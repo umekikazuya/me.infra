@@ -18,15 +18,22 @@ func main() {
 		Config:     cfg,
 	})
 
-	stacks.NewApiStack(app, cfg.StackName("api"), &stacks.StackProps{
+	apiStack := stacks.NewApiStack(app, cfg.StackName("api"), &stacks.StackProps{
 		StackProps: cfg.StackProps(),
 		Config:     cfg,
 		Data:       dataStack,
 	})
 
-	stacks.NewWebStack(app, cfg.StackName("web"), &stacks.StackProps{
+	webStack := stacks.NewWebStack(app, cfg.StackName("web"), &stacks.StackProps{
 		StackProps: cfg.StackProps(),
 		Config:     cfg,
+	})
+
+	stacks.NewDeployStack(app, cfg.StackName("deploy"), &stacks.StackProps{
+		StackProps: cfg.StackProps(),
+		Config:     cfg,
+		Api:        apiStack,
+		Web:        webStack,
 	})
 
 	app.Synth(nil)

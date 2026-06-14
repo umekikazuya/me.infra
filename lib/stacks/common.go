@@ -12,6 +12,7 @@ type StackProps struct {
 	Config *config.AppConfig
 	Data   *DataStack
 	Api    *ApiStack
+	Web    *WebStack
 }
 
 func newStack(scope constructs.Construct, id string, props *StackProps) awscdk.Stack {

@@ -53,6 +53,18 @@ func TestLoadDefaults(t *testing.T) {
 		t.Fatalf("Domain.APIDomain = %q, want empty", cfg.Domain.APIDomain)
 	}
 
+	if cfg.Deploy.GitHubRepo != "replace-owner/replace-repo" {
+		t.Fatalf("Deploy.GitHubRepo = %q, want %q", cfg.Deploy.GitHubRepo, "replace-owner/replace-repo")
+	}
+
+	if cfg.Deploy.GitHubRefPattern != "refs/heads/*" {
+		t.Fatalf("Deploy.GitHubRefPattern = %q, want %q", cfg.Deploy.GitHubRefPattern, "refs/heads/*")
+	}
+
+	if cfg.Deploy.RoleName != "me-app-deploy" {
+		t.Fatalf("Deploy.RoleName = %q, want %q", cfg.Deploy.RoleName, "me-app-deploy")
+	}
+
 	if cfg.HasFrontendCustomDomain() {
 		t.Fatal("HasFrontendCustomDomain() = true, want false")
 	}
@@ -99,6 +111,9 @@ func TestLoadUsesContextOverrides(t *testing.T) {
 		"appCertificateArn": "arn:aws:acm:us-east-1:123456789012:certificate/frontend",
 		"apiDomain":         "api.example.com",
 		"apiCertificateArn": "arn:aws:acm:ap-northeast-1:123456789012:certificate/api",
+		"githubRepo":        "umekikazuya/me.app",
+		"githubRefPattern":  "refs/tags/v*",
+		"deployRoleName":    "custom-app-deploy-role",
 	}
 
 	app := awscdk.NewApp(&awscdk.AppProps{Context: &context})
@@ -148,6 +163,18 @@ func TestLoadUsesContextOverrides(t *testing.T) {
 		t.Fatalf("Domain.APIDomain = %q, want %q", cfg.Domain.APIDomain, "api.example.com")
 	}
 
+	if cfg.Deploy.GitHubRepo != "umekikazuya/me.app" {
+		t.Fatalf("Deploy.GitHubRepo = %q, want %q", cfg.Deploy.GitHubRepo, "umekikazuya/me.app")
+	}
+
+	if cfg.Deploy.GitHubRefPattern != "refs/tags/v*" {
+		t.Fatalf("Deploy.GitHubRefPattern = %q, want %q", cfg.Deploy.GitHubRefPattern, "refs/tags/v*")
+	}
+
+	if cfg.Deploy.RoleName != "custom-app-deploy-role" {
+		t.Fatalf("Deploy.RoleName = %q, want %q", cfg.Deploy.RoleName, "custom-app-deploy-role")
+	}
+
 	if !cfg.HasFrontendCustomDomain() {
 		t.Fatal("HasFrontendCustomDomain() = false, want true")
 	}
@@ -162,6 +189,10 @@ func TestLoadUsesContextOverrides(t *testing.T) {
 
 	if cfg.APIURL() != "https://api.example.com" {
 		t.Fatalf("APIURL() = %q, want %q", cfg.APIURL(), "https://api.example.com")
+	}
+
+	if cfg.GitHubOIDCSubjectPattern() != "repo:umekikazuya/me.app:ref:refs/tags/v*" {
+		t.Fatalf("GitHubOIDCSubjectPattern() = %q, want %q", cfg.GitHubOIDCSubjectPattern(), "repo:umekikazuya/me.app:ref:refs/tags/v*")
 	}
 
 	if cfg.APIFunctionName() != "me-prod-api" {
@@ -194,6 +225,24 @@ func TestLoadPanicsOnIncompleteDomainPair(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Load() should panic when apiDomain is set without apiCertificateArn")
+		}
+	}()
+
+	Load(app)
+}
+
+func TestLoadPanicsOnInvalidGitHubRepo(t *testing.T) {
+	defer _jsii_.Close()
+
+	context := map[string]any{
+		"githubRepo": "invalid-repo",
+	}
+
+	app := awscdk.NewApp(&awscdk.AppProps{Context: &context})
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Load() should panic when githubRepo is not in owner/repo format")
 		}
 	}()
 
