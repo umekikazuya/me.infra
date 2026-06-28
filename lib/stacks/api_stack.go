@@ -77,9 +77,13 @@ func NewApiStack(scope constructs.Construct, id string, props *StackProps) *ApiS
 		corsPreflight = &awsapigatewayv2.CorsPreflightOptions{
 			AllowCredentials: _jsii_.Bool(true),
 			AllowHeaders: &[]*string{
-				_jsii_.String("Authorization"),
+				_jsii_.String("Accept"),
 				_jsii_.String("Content-Type"),
+				_jsii_.String("X-Request-ID"),
 				_jsii_.String("X-Requested-With"),
+			},
+			ExposeHeaders: &[]*string{
+				_jsii_.String("X-Request-ID"),
 			},
 			AllowMethods: &[]awsapigatewayv2.CorsHttpMethod{
 				awsapigatewayv2.CorsHttpMethod_GET,
