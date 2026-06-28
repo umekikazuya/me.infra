@@ -43,10 +43,6 @@ func NewApiStack(scope constructs.Construct, id string, props *StackProps) *ApiS
 		"LOG_LEVEL":           _jsii_.String(cfg.Data.LogLevel),
 	}
 
-	if cfg.HasFrontendCustomDomain() {
-		environment["CORS_ALLOWED_ORIGINS"] = _jsii_.String(cfg.FrontendURL())
-	}
-
 	logGroup := awslogs.NewLogGroup(stack, _jsii_.String("ApiLogGroup"), &awslogs.LogGroupProps{
 		LogGroupName:  _jsii_.String(cfg.APILogGroupName()),
 		Retention:     awslogs.RetentionDays_ONE_MONTH,
