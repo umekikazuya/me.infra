@@ -102,7 +102,7 @@ func NewApiStack(scope constructs.Construct, id string, props *StackProps) *ApiS
 	}
 
 	var domainName awsapigatewayv2.DomainName
-	var stageDomainMapping *awsapigatewayv2.DomainMappingOptions
+	var defaultDomainMapping *awsapigatewayv2.DomainMappingOptions
 	if cfg.HasAPICustomDomain() {
 		certificate := awscertificatemanager.Certificate_FromCertificateArn(
 			stack,
@@ -113,7 +113,7 @@ func NewApiStack(scope constructs.Construct, id string, props *StackProps) *ApiS
 			Certificate: certificate,
 			DomainName:  _jsii_.String(cfg.Domain.APIDomain),
 		})
-		stageDomainMapping = &awsapigatewayv2.DomainMappingOptions{
+		defaultDomainMapping = &awsapigatewayv2.DomainMappingOptions{
 			DomainName: domainName,
 		}
 	}
@@ -121,9 +121,9 @@ func NewApiStack(scope constructs.Construct, id string, props *StackProps) *ApiS
 	httpAPI := awsapigatewayv2.NewHttpApi(stack, _jsii_.String("HttpApi"), &awsapigatewayv2.HttpApiProps{
 		ApiName:                   _jsii_.String(cfg.StackName("http-api")),
 		CorsPreflight:             corsPreflight,
+		DefaultDomainMapping:      defaultDomainMapping,
 		Description:               _jsii_.String("me API Gateway HTTP API"),
 		DisableExecuteApiEndpoint: _jsii_.Bool(cfg.HasAPICustomDomain()),
-		CreateDefaultStage:        _jsii_.Bool(false),
 		DefaultIntegration: awsapigatewayv2integrations.NewHttpLambdaIntegration(
 			_jsii_.String("DefaultIntegration"),
 			function,
@@ -131,17 +131,6 @@ func NewApiStack(scope constructs.Construct, id string, props *StackProps) *ApiS
 				PayloadFormatVersion: awsapigatewayv2.PayloadFormatVersion_VERSION_2_0(),
 			},
 		),
-	})
-
-	awsapigatewayv2.NewHttpStage(stack, _jsii_.String("DefaultStage"), &awsapigatewayv2.HttpStageProps{
-		HttpApi:       httpAPI,
-		StageName:     _jsii_.String("$default"),
-		AutoDeploy:    _jsii_.Bool(true),
-		DomainMapping: stageDomainMapping,
-		Throttle: &awsapigatewayv2.ThrottleSettings{
-			RateLimit:  _jsii_.Number(100),
-			BurstLimit: _jsii_.Number(200),
-		},
 	})
 
 	apiEndpoint := _jsii_.String(cfg.APIURL())
