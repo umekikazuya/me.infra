@@ -66,6 +66,15 @@ func TestApiStack(t *testing.T) {
 		},
 	})
 
+	template.HasResourceProperties(_jsii_.String("AWS::ApiGatewayV2::Stage"), map[string]any{
+		"StageName":  "$default",
+		"AutoDeploy": true,
+		"DefaultRouteSettings": map[string]any{
+			"ThrottlingRateLimit":  assertions.Match_AnyValue(),
+			"ThrottlingBurstLimit": assertions.Match_AnyValue(),
+		},
+	})
+
 	template.HasResourceProperties(_jsii_.String("AWS::ApiGatewayV2::Api"), map[string]any{
 		"Name":                      "me-dev-http-api",
 		"ProtocolType":              "HTTP",
