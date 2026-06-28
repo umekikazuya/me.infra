@@ -142,11 +142,6 @@ func NewApiStack(scope constructs.Construct, id string, props *StackProps) *ApiS
 		awsapigatewayv2.HttpMethod_DELETE,
 	}
 	httpAPI.AddRoutes(&awsapigatewayv2.AddRoutesOptions{
-		Path:        _jsii_.String("/"),
-		Methods:     nonOptionsMethods,
-		Integration: integration,
-	})
-	httpAPI.AddRoutes(&awsapigatewayv2.AddRoutesOptions{
 		Path:        _jsii_.String("/{proxy+}"),
 		Methods:     nonOptionsMethods,
 		Integration: integration,
